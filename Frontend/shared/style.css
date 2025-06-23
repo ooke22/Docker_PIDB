@@ -1,0 +1,698 @@
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f5f5f5; /* Light gray background */
+  }
+
+  header {
+    background-color: #343a40; /* Dark blue header */
+    color: #fff; /* White text */
+    padding: 1rem;
+    text-align: center;
+  }
+
+  main {
+    display: flex; /* Arrange cards horizontally */
+    flex-wrap: wrap; /* Allow cards to wrap onto multiple lines */
+    justify-content: space-around; /* Distribute cards evenly */
+    padding: 1rem;
+  }
+
+  .card {
+    background-color: #fff; /* White card background */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    margin: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    width: 200px; /* Adjust card width as needed */
+  }
+
+  .card img {
+    display: block; /* Display image as a block element */
+    margin: 0 auto; /* Center image horizontally */
+    width: 50px; /* Adjust image size as needed */
+  }
+
+  .card h2 {
+    font-size: 1.2rem; /* Adjust heading size as needed */
+    margin: 0.5rem 0;
+  }
+
+  .card p {
+    font-size: 0.9rem; /* Adjust paragraph size as needed */
+    margin: 0.5rem 0;
+  }
+
+  .card a {
+    background-color: #343a40; /* Same color as header */
+    color: #fff; /* White text */
+    padding: 0.4rem 1rem;
+    text-decoration: none;
+  }
+
+  .card a:hover {
+    background-color: #29323a; /* Darken background on hover */
+  }
+
+  .batch-info p {
+    padding: 0.5rem;
+    margin: 0.5rem;
+    cursor: pointer;
+    width: auto;
+    width: calc(33.33% - 1rem); /* Approximately one-third of the container's width minus margins */
+    display: inline-block; /* Ensure each paragraph behaves as a block */
+    box-sizing: border-box;
+  }
+
+  .batch-info p:hover {
+    color: blue;
+  }
+
+  .batch-info-container {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    margin: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    width: auto; /* Adjust card width as needed */
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .container {
+    background-color: antiquewhite; /* White card background */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    margin: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    width: auto; /* Adjust card width as needed */
+    display: block;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .details p {
+    font-size: 1rem; /* Adjust paragraph size as needed */
+    margin: 0.5rem 0;
+  }
+
+  .dropdown-icon::before {
+    content: "\25BC";
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  .dropdown-container {
+    position: relative;
+    display: inline-block;
+  }
+
+  .dropdown-content {
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+  }
+
+  .dropdown-content option {
+    padding: 12px 16px;
+    display: block;
+    cursor: pointer;
+  }
+
+  .electrode-image {
+    width: 100px;
+    height: auto;
+    margin: 5px;
+    cursor: pointer;
+  }
+
+  .navigation-panel {
+    overflow: hidden;
+    display: flex;
+    justify-content: space-between;
+    /*padding: 1rem;*/
+  }
+  
+  .navigation-panel a {
+    color: white;
+    text-decoration: none;
+    font-size: 16px;
+    /*margin: 0.5rem;*/
+    /*flex-grow: 1;  Allow links to expand and fill the available space */
+    text-align: center; /*Center align text within the links */
+    padding: 14px 16px
+  }
+  
+  .navigation-panel a:hover {
+    background-color: #eee;
+    color: black;
+  }
+
+  .subnav .subnavbtn {
+    font-size: 16px;  
+    border: none;
+    outline: none;
+    color: white;
+    padding: 14px 16px;
+    background-color: inherit;
+    font-family: inherit;
+    margin: 0;
+  }
+  
+  .navbar a:hover, .subnav:hover .subnavbtn {
+    background-color: #c7c4c4;
+  }
+  
+  .subnav-content {
+    display: none;
+    position:absolute;
+    background-color: gray;
+    width: auto;
+    z-index: 9999;
+  }
+  
+  .subnav-content a {
+    display: block;
+    color: white;
+    text-decoration: none;
+    padding: 10px 16px;
+  }
+  
+  .subnav-content a:hover {
+    background-color: #eee;
+    color: black;
+  }
+  
+  .subnav:hover .subnav-content {
+    display: block;
+  }
+  
+
+  .search {
+    position: relative;
+    top: 0; /* Adjust the top position */
+    right: 0; /* Position the container to the right */
+    margin-right: 20px;
+    background-color: antiquewhite;
+    width: 100%;
+    padding: 1rem;
+    box-sizing: border-box;
+    z-index: 999; /* Ensures it's on top of other elements. */
+  }
+
+  .search input {
+    height: 25px;
+    padding-right: 30px; /* Add space for the icon */
+    box-sizing: border-box; /* Include padding and border */
+  }
+
+  .search-icon {
+    position: relative;
+    top: 0; /*Align vertically*/
+    right: 0px; /* Distance from input */
+    transform: translateY(-50%); /* Center vertically */
+  }
+
+  .search-icon i {
+    color: #333;
+    cursor: pointer; /*Change cursor to pointer on hover */
+  }
+
+  #processTable {
+    width: 100%; /* Fill the entire width of the viewport */
+    margin-top: 2px; /* Add space for the search bar */
+    border-collapse: collapse; /* Collapse border spacing */
+  }
+
+  #processTable th,
+  #processTable td {
+    border: 2px solid #C9CDE4; /* Define border for table cells */
+    padding: 8px; /* Add padding for better appearance */
+    text-align: left; /* Align text to the left */
+  }
+
+  #viewBatchesTable {
+    width: 100%;
+    margin-top: 5px;
+    border-collapse: collapse;
+  }
+
+  #viewBatchesTable th,
+  #viewBatchesTable td {
+    border: 2px solid #C9CDE4;
+    padding: 8px;
+    text-align: left;
+  }
+
+  #batchDetailsTable {
+    width: 100%;
+    margin-top: 5px;
+    border-collapse: collapse;
+  }
+
+  #batchDetailsTable th,
+  #batchDetailsTable td {
+    border: 2px solid #C9CDE4;
+    padding: 8px;
+    text-align: left;
+  }
+
+  #batchInfoList {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  #imageContainer {
+    margin-top: 20px;
+    text-align: center;
+  }
+
+  #imageContainer h3 {
+    margin-bottom: 10px;
+  }
+  #imageContainer img {
+    width: 160px;
+    height: auto;
+    margin: 5px;
+  }
+
+  .retrieve {
+    position: relative;
+    top: 3px;
+    left: 0;
+    margin-right: auto;
+  }
+
+  .retrieve label {
+    padding: 12px 15px; /* Adds space around the content inside cells */
+    min-width: 150px; /* Ensures a minimum width for visibility */
+    min-height: 40px; /* Ensures a minimum height for visibility */
+    /*border: 1px solid #ddd; /* Adds a border to each cell for clarity */
+    vertical-align: top; /* Vertically centers the text within cells */
+    word-wrap: break-word; /* Ensures content doesn't overflow */
+    font-weight: bold; /* Makes text in blue cells stand out */
+  }
+
+  .retrieve input {
+    height: auto;
+    padding-bottom: 5px;
+    box-sizing: border-box;
+    padding: 12px 15px; /* Adds space around the content inside cells */
+    min-width: 150px; /* Ensures a minimum width for visibility */
+    min-height: 40px; /* Ensures a minimum height for visibility */
+    /*border: 1px solid #0000003a; /* Adds a border to each cell for clarity */
+    vertical-align: top; /* Vertically centers the text within cells */
+    word-wrap: break-word; /* Ensures content doesn't overflow */
+  }
+
+  .retrieve button {
+    width: auto;
+    box-sizing: border-box;
+    margin-top: 12px; /* Provides spacing between the input boxes and the retrieve button */
+    padding: 10px 20px; /* Adds padding inside the button */
+    background-color: #4CAF50; /* Green background for the button */
+    color: white; /* White text color for better contrast */
+    border: none; /* Removes default button border */
+    cursor: pointer; /* Changes cursor to pointer on hover */
+    font-size: 16px; /* Increases font size for better readability */
+    border-radius: 5px; /* Slightly rounds the corners of the button */
+  }
+
+  .retrieve button:hover{
+    background-color: #45a049;
+  }
+
+  .update button {
+    width: auto;
+    box-sizing: border-box;
+    margin-top: 12px; /* Provides spacing between the input boxes and the retrieve button */
+    padding: 10px 20px; /* Adds padding inside the button */
+    background-color: #4CAF50; /* Green background for the button */
+    color: white; /* White text color for better contrast */
+    border: none; /* Removes default button border */
+    cursor: pointer; /* Changes cursor to pointer on hover */
+    font-size: 16px; /* Increases font size for better readability */
+    border-radius: 5px; /* Slightly rounds the corners of the button */
+  }
+
+  #image_upload_button {
+    height: 30px;
+    width: auto;
+    box-sizing: border-box;
+    margin-top: 12px;
+   }
+  
+   /* Loader animation */
+  .loader {
+    border: 16px solid #c7c4c4; 
+    border-top: 16px solid #3498db;
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    animation: spin 2s linear infinite;
+    
+    /* Center the loader */
+    position: fixed;
+    top: 50%;
+    left: 45%;
+    transform: translate(-50%, -50%);
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% {transform: rotate(360deg);}
+  }
+  
+   /* CSS Styles for the Card View */
+  
+  /* Card Container */
+  .card-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px;
+  }
+  
+  /* Card styles */
+  .batch_card {
+    background-color: rgba(236, 239, 239, 0.795); 
+    width: 300px;
+    margin: 20px;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease;
+    cursor: pointer;
+    text-align: center;
+  }
+  
+  .batch_card:hover {
+    box-shadow: 0px 0px 20px 0px rgba(0,0,0,0.2);
+  }
+  
+  .batch_card h2 {
+    margin-bottom: 10px;
+    text-align: center;
+    color:#6f7fe9;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  
+  .batch_card h3 {
+    margin-bottom: 2px;
+    text-align: center;
+    color: black;
+    text-decoration: double;
+  }
+  
+  .batch_card p {
+    margin-bottom: 5px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 17px;
+  }
+  
+  .batch_card a {
+    display: block;
+    color: #007bff;
+    text-decoration: none;
+    margin-top: 18px;
+    text-align: center;
+  }
+  
+  .batch_card a:hover {
+    text-decoration: underline;
+  }
+  
+  .search select {
+    width: 8rem;
+    margin-right: 10px;
+  }
+  
+  .search button {
+    font-size: 14px;
+    margin-right: 10px;
+    width: 78px;
+    height: 25px;
+  }
+
+
+
+  .userDropdown {
+    position: absolute;
+    display: inline-block;
+    top: 10px;
+    right: 20px;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px;
+    align-items: center;
+  }
+  
+  .userDropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+    z-index: 1;
+    right: 0;
+    font-size: 16px;
+  }
+  
+  .userDropdown-content button {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    background-color: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    
+  }
+  
+  .userDropdown-content button:hover {
+    background-color: #c7c4c4;
+  }
+  
+  .userDropdown:hover .userDropdown-content {
+    display: block;
+  }
+  
+  .user-icon {
+    position: absolute; 
+    top: 0px; /*center vertically*/
+    left: -15px; /* Distance from username */
+    font-size: 30px;
+  }
+  
+  .user-icon i {
+    color: #f1f1f1;
+    cursor: pointer; /*Change cursor to pointer on hover */
+  }
+  
+  .user-name {
+    margin-left: 12px; /* Add margin to separate user icon and user name */
+    font-size: 17px;
+  }
+
+
+  /* Batch Encoder table sytling */
+  /* General table styling */
+#batchtable, #Processtable {
+  width: 100%;
+  border-collapse: collapse; /* Ensures borders between cells don't overlap */
+}
+
+/* Styling for table headers and cells */
+#batchtable td, #Processtable td {
+  padding: 12px 15px; /* Adds space around the content inside cells */
+  min-width: 150px; /* Ensures a minimum width for visibility */
+  min-height: 40px; /* Ensures a minimum height for visibility */
+  border: 1px solid #ddd; /* Adds a border to each cell for clarity */
+  vertical-align: top; /* Vertically centers the text within cells */
+  word-wrap: break-word; /* Ensures content doesn't overflow */
+}
+
+#batchtable td textarea, #Processtable td textarea {
+  width: 100%; /* Ensures the textarea takes the full width of the cell */
+  padding: 8px; /* Adds padding inside the textarea for better readability */
+  box-sizing: border-box; /* Ensures padding is included in the width */
+  resize: vertical; /* Allows users to resize the textarea vertically */
+  font-family: inherit; /* Inherits the font from the parent element */
+  font-size: inherit; /* Inherits the font size from the parent element */
+}
+
+/* Specific styling for input fields within the table cells */
+#batchtable td input[type="text"], 
+#batchtable td input[type="datetime-local"],
+#batchtable td input[list],
+#Processtable td input[type="text"] {
+  width: 100%; /* Makes the input fields take up the entire width of the cell */
+  padding: 8px; /* Adds padding inside input fields for better readability */
+  box-sizing: border-box; /* Ensures padding doesn't affect the width of input fields */
+}
+
+/* Specific styling for cells with a background color */
+#batchtable td[style*="background-color: lightblue;"] {
+  font-weight: bold; /* Makes text in blue cells stand out */
+}
+
+/* Hover effect for rows */
+#batchtable tr:hover {
+  background-color: #f1f1f1; /* Highlights the row when hovered */
+}
+
+/* Styling for the "Import" button */
+#postBatchData, #uploadButton, #more {
+  margin-top: 20px; /* Adds space above the button */
+  padding: 10px 20px; /* Adds padding inside the button */
+  background-color: #4CAF50; /* Green background for the button */
+  color: white; /* White text color for better contrast */
+  border: none; /* Removes default button border */
+  cursor: pointer; /* Changes cursor to pointer on hover */
+  font-size: 16px; /* Increases font size for better readability */
+  border-radius: 5px; /* Slightly rounds the corners of the button */
+}
+
+#postBatchData:hover, #uploadButton:hover, #updateButton:hover {
+  background-color: #45a049; /* Darker green on hover */
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 600px) {
+  #batchtable td, #Processtable td {
+      min-width: 100px; /* Decreases minimum width for smaller screens */
+      padding: 10px; /* Adjusts padding for smaller screens */
+  }
+}
+
+#nextBatch {
+  /* Center the loader */
+  position:flex;
+  justify-content: center;
+  padding: 1rem;
+}
+
+/* Flip Card Styles */
+.flip-card-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.flip-card {
+  background-color: transparent;
+  width: 30px;
+  height: 20px;
+  perspective: 1000px; /* Creates 3D perspective */
+}
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.flip-card:hover .flip-card-inner {
+  transform: rotateY(180deg);
+}
+.flip-card-front, .flip-card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden; /* Hide the back face when flipped */
+}
+.flip-card-front {
+  background-color: #f1f1f1;
+  color: black;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.flip-card-back {
+  background-color: #2980b9;
+  color: white;
+  transform: rotateY(180deg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.flip-card-back img {
+  width: 80%;
+  height: auto;
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 300px;  /* Adjust the width as needed */
+  margin-left: auto;
+  right: 20px;
+}
+
+.searchBox input {
+  padding: 5px;
+  font-size: 14px;
+  height: 30px; /* Adjust the height */
+  width: 100%;
+  box-sizing: border-box; /* Ensures the input's width includes padding and borders */
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+/* Dropdown for autocomplete suggestions */
+.autocomplete-suggestions {
+  position: absolute;
+  top: 35px;  /* Position below the search input field */
+  left: 0;
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+  z-index: 1000;
+  max-height: 200px;  /* Limit the height */
+  overflow-y: auto;   /* Enable vertical scroll if suggestions overflow */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.autocomplete-suggestions div {
+  padding: 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+}
+
+.autocomplete-suggestions div:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-suggestions div:hover {
+  background-color: #f0f0f0;
+}
+
+#logo-img {
+  display: flex;
+  position: fixed;
+  top: 1%;
+  left: 1%;
+  width: 3rem;
+  height: 4rem;
+  z-index: 1000;
+
+}
+
+.logo-img {
+  top: 2%;
+  left: 1%;
+  position: fixed;
+  font-size: 3rem;
+}
+

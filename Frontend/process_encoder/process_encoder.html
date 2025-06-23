@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Encoder</title>
+	<link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+	<link rel="stylesheet" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/style.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+<body>
+	<header>
+		<h1>Process Encoder</h1>
+		<!-- Navigation Panel-->
+		<div class="navigation-panel">
+			<a href="home_page.html">Home</a>
+			<div class="subnav">
+				<button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="process_encoder.html">Process Encoder</a>
+					<a href="process_views.html">Process List</a>
+				</div>
+			</div>
+			<div class="subnav">
+				<button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="batch_encoder.html">Batch Encoder</a>
+					<a href="batch_summary.html">Batch List</a>
+				</div>
+			</div>
+			<div class="subnav">
+				<button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="image_upload.html">Upload Images</a>
+					<a href="image_view.html">Electrode Images</a>
+				</div>
+			</div>
+			<a href="elec_update.html">Update Electrodes</a>
+		</div>
+		<div id="user-dropdown" class="userDropdown">
+            <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+			<span id="user-name" class="user-name">Username</span>
+            <div class="userDropdown-content" id="userDropdown-content">
+                <button id="logoutBtn">Logout</button>
+            </div>
+        </div>
+	</header>
+   
+
+<table id="Processtable">
+	<tr><td>Process ID:</td><td><input type="text" id="process_id" placeholder="Enter Process ID"></td></tr>
+
+    <tr><td>Scope:</td><td><input type="text" id="scope" placeholder="Enter Scope"></td></tr>
+
+    <tr><td>Description:</td><td><textarea id="description" rows="4" cols="50" style="height: 100px;" placeholder="Enter Description"></textarea></td></tr>
+
+    <tr><td>CSV/Excel File:</td><td><input type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" id="source"></td></tr>
+</table>
+
+<button id="uploadButton">Upload Process</button>
+
+<script>
+	async function uploadProcess() {
+		var process_id = document.getElementById('process_id').value;
+		var scope = document.getElementById('scope').value;
+		var description = document.getElementById('description').value;
+		var source = document.getElementById('source').files[0];
+	
+		var data = new FormData();
+		data.append('process_id', process_id);
+		data.append('scope', scope);
+		data.append('description', description);
+		data.append('source', source, source.name);
+	
+		try {
+			console.log('Data to be sent: ', Array.from(data.entries()));
+	
+			//const token = localStorage.getItem('token');
+			const response = await fetch('http://127.0.0.1:8000/process-test/processes/', {
+				method: 'POST',
+				body: data,
+			});
+			if (!response.ok) {
+				const errorText = await response.text();
+				console.error('HTTP error details: ', response.status, errorText)
+			}
+	
+			const responseData = await response.json();
+			console.log('Data posted successfully:', responseData);
+			
+			// Check if the callback function exists in the Batch Encoder Window
+			if(window.opener && window.opener.handleDropDownUpdate) {
+				// Call the callback function to update the dropdown
+				winow.opener.handleDropDownUpdate(responseData.process_list);
+			}
+			alert('Process uploaded successfully!');
+			window.location.reload(); // Reload page after upload.
+		} catch (error) {
+			console.error('Error posting data:', error);
+			alert('Error uploading process. Please try again.');
+		}
+	}
+	
+	document.getElementById('uploadButton').addEventListener('click', uploadProcess);
+	
+</script>
+</body>
+</html>

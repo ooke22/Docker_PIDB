@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"process_id":{"$numberInt":"1"}},"name":"__primary_key__","unique":true}],"uuid":"7a29f411495441e7a9b412d20eedf232","collectionName":"process_encoder_processfile","type":"collection"}

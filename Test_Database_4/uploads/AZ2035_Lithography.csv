@@ -1,0 +1,9 @@
+﻿parameter,unit,value,description
+trace_masking_material,,AZ2035,
+trace_masking_spin_speed,rpm,3000,
+trace_masking_softbake_temp,degC,115,
+trace_masking_softbake_duration,s,60,
+trace_masking_exposure_dosage,mJ/cm^2,75,
+trace_masking_peb_temp,degC,115,
+trace_masking_peb_duration,s,60,
+trace_masking_development_duration,s,60,

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch Encoder</title>
+    <link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+    <!--link rel="stylesheet" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/style.css"-->
+    <link rel="stylesheet" href="C:\PI Local Tests\Frontend\style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        .info-icon::before {
+            content: "\1f6c8";
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        #wafer_process_dropdown {
+            width: 100%;
+            max-width: 900px;
+            font-size: medium;
+            height: 120px;
+        }
+
+        .timestamp-container {
+            margin-top: 10px;
+        }
+
+        label {
+            display: block;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Batch Encoder</h1>
+        <div id="logo-img" class="logo-img">
+			<img src="https://sensors-production.s3.ap-southeast-4.amazonaws.com/prod-frontend/icon.png" alt="Company Logo">
+		</div>
+        <!-- Navigation Panel -->
+        <div class="navigation-panel">
+            <a href="home_page.html">Home</a>
+            <div class="subnav">
+                <button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="process_encoder.html">Process Encoder</a>
+                    <a href="process_views.html">Process List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="batch_encoder.html">Batch Encoder</a>
+                    <a href="batch_summary.html">Batch List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="image_upload.html">Upload Images</a>
+                    <a href="image_view.html">Electrode Images</a>
+                </div>
+            </div>
+            <a href="elec_update.html">Update Electrodes</a>
+        </div>
+
+        <div id="user-dropdown" class="userDropdown">
+            <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+            <span id="user-name" class="user-name">Username</span>
+            <div class="userDropdown-content" id="userDropdown-content">
+                <button id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <table id="batchtable">
+        <tr>
+            <td style="background-color: lightblue;">Batch Location</td>
+            <td><input type="text" id="batch_location" placeholder="Enter a letter"></td>
+        </tr>
+        <tr>
+            <td style="background-color: lightblue;">Batch ID</td>
+            <td><input type="text" id="batch_id" placeholder="Enter a number"></td>
+        </tr>
+        <tr>
+            <td style="background-color: lightblue;">Total Wafers</td>
+            <td><input type="text" id="total_wafers" placeholder="Enter a number"></td>
+        </tr>
+        <tr>
+            <td style="background-color: lightblue;">Total Sensors per wafer</td>
+            <td><input type="text" id="total_sensors" placeholder="Enter a number"></td>
+        </tr>
+        <tr>
+            <td>Batch Label</td>
+            <td><input type="text" id="batch_label" placeholder="Enter a string"></td>
+        </tr>
+        <tr>
+            <td>Batch Description</td>
+            <td><textarea id="batch_description" rows="4" cols="50" style="height: 100px;" placeholder="Enter a string"></textarea></td>
+        </tr>
+        <tr>
+            <td style="background-color: lightblue;">Wafer Process ID</td>
+            <td>
+                <label for="wafer_process_dropdown">Select Wafer Process IDs:</label>
+                <select id="wafer_process_dropdown" multiple></select>
+                <span class="info-icon" title="List of Processes"></span>
+                <div id="timestampContainerWrapper"></div>
+            </td>
+        </tr>
+        <!--tr>
+            <td>Wafer Build Time</td>
+            <td><input type="datetime-local" id="wafer_build_time" placeholder="Enter a date"></td>
+        </tr-->
+        <tr>
+            <td>Sensor Label</td>
+            <td><input type="text" id="sensor_label" placeholder="Enter a string"></td>
+        </tr>
+        <tr>
+            <td>Sensor Description</td>
+            <td><textarea id="sensor_description" rows="4" cols="50" style="height: 100px;" placeholder="Enter a string"></textarea></td>
+        </tr>
+    </table>
+
+    <button id="postBatchData">Import</button>
+    <div style="background-color: #C9CDE4">
+        <p><b>Call return</b></p>
+        <p id="error-output" style="color: red; margin-top: 10px;">Status message</p>
+    </div>
+
+    <script>
+        // Function to populate the dropdown with process IDs and descriptions
+        async function retrieveProcesses() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/process-test/get_processes/', {
+                    method: 'GET',
+                });
+                if (!response.ok) throw new Error(`HTTP error: Status: ${response.status}`);
+                
+                const processes = await response.json();
+                populateProcessDropdown(processes);
+            } catch (error) {
+                console.error('Error retrieving processes:', error);
+            }
+        }
+
+        function populateProcessDropdown(processes) {
+            const dropdown = document.getElementById('wafer_process_dropdown');
+            dropdown.innerHTML = ''; // Clear previous options
+
+            processes.forEach(process => {
+                const option = document.createElement('option');
+                option.value = process.process_id;
+                option.textContent = `${process.process_id} - ${process.description}`;
+                dropdown.appendChild(option);
+            });
+
+            if (!dropdown.hasAttribute('listener-attached')) {
+                dropdown.addEventListener('change', handleProcessSelection);
+                dropdown.setAttribute('listener-attached', 'true');
+            }
+        }
+
+        function handleProcessSelection() {
+            const selectedOptions = Array.from(document.getElementById('wafer_process_dropdown').selectedOptions);
+            const timestampContainerWrapper = document.getElementById('timestampContainerWrapper');
+            timestampContainerWrapper.innerHTML = ''; // Clear previous timestamps
+
+            selectedOptions.forEach(option => {
+                const processId = option.value;
+
+                // Create a new container for each timestamp input
+                const timestampContainer = document.createElement('div');
+                timestampContainer.className = 'timestamp-container';
+
+                const label = document.createElement('label');
+                label.textContent = `Timestamp for Process ID ${processId}:`;
+                timestampContainer.appendChild(label);
+
+                const timestampInput = document.createElement('input');
+                timestampInput.type = 'datetime-local';
+                timestampInput.className = 'new-timestamp';
+                timestampInput.setAttribute('data-process-id', processId);
+
+                timestampContainer.appendChild(timestampInput);
+                timestampContainerWrapper.appendChild(timestampContainer);
+            });
+        }
+
+        // Function to gather data and send it to the server
+        async function postBatchData() {
+            const batchData = {
+                batch_location: document.getElementById('batch_location').value,
+                batch_id: document.getElementById('batch_id').value,
+                total_wafers: document.getElementById('total_wafers').value,
+                total_sensors: document.getElementById('total_sensors').value,
+                batch_label: document.getElementById('batch_label').value,
+                batch_description: document.getElementById('batch_description').value,
+                //wafer_build_time: document.getElementById('wafer_build_time').value,
+                sensor_label: document.getElementById('sensor_label').value,
+                sensor_description: document.getElementById('sensor_description').value,
+                //processes: []
+            };
+
+            // Collect all selected process IDs and their timestamps
+            processes = []
+            const timestampInputs = document.querySelectorAll('.new-timestamp');
+            timestampInputs.forEach(input => {
+                const processId = input.getAttribute('data-process-id');
+                const localTimestamp = input.value;
+
+                if (localTimestamp) {
+                    const localDate = new Date(localTimestamp); // Creates a Date object in local time
+                    const utcTimestamp = localDate.toISOString(); // Converts to UTC string
+
+                    processes.push({ process_id: processId, timestamp: utcTimestamp });
+                }
+               
+            });
+
+            batchData['sensor_processes'] = processes;
+
+            console.log(batchData.processes);
+            console.log(batchData);
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/test/batch/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(batchData)
+                });
+
+                const result = await response.json();
+                console.log('Response Data: ', result);
+                if (response.ok) {
+                    document.getElementById('error-output').textContent = 'Batch created successfully!';
+                    alert('Batch created sucessfully.');
+                    window.location.reload();
+                } else {
+                    document.getElementById('error-output').textContent = `Error: ${result.message}`;
+                }
+            } catch (error) {
+                console.error('Error posting batch data:', error);
+                document.getElementById('error-output').textContent = 'Failed to create batch.';
+            }
+        }
+
+        // Initialize processes dropdown on page load
+        window.onload = retrieveProcesses;
+        // Attach event listener for the Import button
+        document.getElementById('postBatchData').addEventListener('click', postBatchData);
+    </script>
+</body>
+</html>

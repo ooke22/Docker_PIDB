@@ -1,0 +1,384 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electrode Update</title>
+    <link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <style>
+        /* Styling for the larger dropdown */
+        #new_process_ids {
+            width: 250px;
+            height: 100px;
+            font-size: 16px;
+        }
+
+        #selectedProcessBox, #addedProcessBox {
+            width: 500px;
+            border: 1px solid #000;
+            padding: 10px;
+            margin-left: 20px;
+            font-size: 16px;
+            height: 100px;
+            overflow-y: auto;
+        }
+
+        .timestamp-container {
+            margin-top: 5px;
+        }
+
+        .selected-process {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        #timestampContainerWrapper {
+            margin-top: 10px;
+            font-size: 16px;
+        }
+    </style>
+
+</head>
+<body>
+    <header>
+        <h1>Retrieve and Update Electrode Page</h1>
+        <div class="navigation-panel">
+            <a href="home_page.html">Home</a>
+            <div class="subnav">
+                <button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="process_encoder.html">Process Encoder</a>
+                    <a href="process_views.html">Process List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="batch_encoder.html">Batch Encoder</a>
+                    <a href="batch_summary.html">Batch List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="image_upload.html">Upload Images</a>
+                    <a href="image_view.html">Electrode Images</a>
+                </div>
+            </div>
+            <a href="elec_update.html">Update Electrodes</a>
+        </div>
+        <div id="user-dropdown" class="userDropdown">
+            <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+            <span id="user-name" class="user-name">Username</span>
+            <div class="userDropdown-content" id="userDropdown-content">
+                <button id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </header>
+    <div class="retrieve" id="retrieveBatch">
+        <label for="batch_location">Batch Location:</label>
+        <input type="text" id="batch_location" required>
+        <br>
+        <label for="batch_id">Batch ID:</label>
+        <input type="text" id="batch_id" required>
+        <br>
+        <button id="retrieveButton">Retrieve Data</button>
+    </div>
+    <div class="update" id="electrodeDetails" style="display: none;">
+        <h3 style="background-color: #C9CDE4">Sensor Details</h3>
+        <p id="batchLocation"></p>
+        <p id="batchId"></p>
+        <p id="waferIds"></p>
+        <p id="sensorIds"></p>
+        <p id="wafer_processes"></p>
+        <p id="updatedata"></p>
+        <h3 style="background-color: #C9CDE4">Sensors to Update</h3>
+        <form id="updateForm">
+            <label for="wafer_ids">Wafers (Range):</label>
+            <input type="text" id="wafer_ids" placeholder="e.g., 1-3, 5, 10">
+            <label for="sensor_ids">Sensors (Range):</label>
+            <input type="text" id="sensor_ids" placeholder="e.g., 1-5, 8, 10-12">
+            <h3 style="background-color: #C9CDE4">Select Fields to Update</h3>         
+            <table id="updateTable">
+                <tr>
+                    <th style="background-color: #ffffff">Field</th>
+                    <th style="background-color: #ffffff">Select</th>
+                    <th style="background-color: #ffffff">New Value</th>
+                </tr>
+            </table>
+            <!-- New fields for process_id and timestamp -->
+            <h3 style="background-color: #C9CDE4">Process Details</h3>
+            <table id="processTable" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="border: 1px solid #000;">Process ID</th>
+                        <th style="border: 1px solid #000;">Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="processTableBody">
+                </tbody>
+            </table>
+
+            <div style="display: flex;">
+                <div>
+                    <label for="new_process_ids">Process IDs:</label>
+                    <select id="new_process_ids" multiple></select>
+                </div>
+
+                <div id="selectedProcessBox">
+                    <h4>Timestamp</h4>
+                    <div id="selectedProcessContainer"></div>
+                </div>
+
+                <div id="addedProcessBox">
+                    <h4>Added Processes</h4>
+                    <div id="addedProcessContainer"></div>
+                </div>
+            </div>
+
+            <div id="timestampContainerWrapper"></div>
+            <button type="button" id="updateButton">Update</button>
+        </form>
+    </div>
+    <script>
+        function createUpdateTable() {
+            var table = document.getElementById('updateTable');
+            const fieldsToUpdate = [
+                'batch_label', 'batch_description', 'wafer_label', 'wafer_description', 'wafer_design_id',
+                'sensor_label', 'sensor_description'
+            ];
+            for (var i = 0; i < fieldsToUpdate.length; i++) {
+                var row = table.insertRow(i + 1);
+                // Field cell
+                var fieldCell = row.insertCell(0);
+                fieldCell.innerHTML = fieldsToUpdate[i].replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                // Checkbox cell
+                var checkboxCell = row.insertCell(1);
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `update_${fieldsToUpdate[i]}`;
+                checkbox.name = `update_${fieldsToUpdate[i]}`;
+                checkboxCell.appendChild(checkbox);
+                // New Value cell
+                var newValueCell = row.insertCell(2);
+                var newValueInput = document.createElement('input');
+                newValueInput.type = 'text';
+                newValueInput.id = `new_${fieldsToUpdate[i]}`;
+                newValueInput.name = `new_${fieldsToUpdate[i]}`;
+                newValueCell.appendChild(newValueInput);
+                // Attach event listener to the 'New Values' input element
+                newValueInput.addEventListener('input', createInputListener(checkbox));
+            }
+        }
+        
+        function createInputListener(checkbox) {
+            return function () {
+                checkbox.checked = this.value !== '';
+            };
+        }
+        async function retrieveData() {
+            var batchLocation = document.getElementById('batch_location').value;
+            var batchId = document.getElementById('batch_id').value;
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`http://127.0.0.1:8000/test/detail/${batchLocation}/${batchId}/`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (!response.ok) throw new Error(`HTTP error: Status: ${response.status}`);
+                const data = await response.json();
+                console.log('Retrieved Data: ', data);
+                document.getElementById('batchLocation').innerText = 'Batch Location: ' + data.batch_location;
+                document.getElementById('batchId').innerText = 'Batch ID: ' + data.batch_id;
+                document.getElementById('waferIds').innerText = 'Total Wafers: ' + data.total_wafers;
+                document.getElementById('sensorIds').innerText = 'Total Sensors: ' + data.total_sensors;
+                const processTableBody = document.getElementById('processTableBody');
+                processTableBody.innerHTML = '';
+                data.wafer_processes.forEach(process => {
+                    const row = processTableBody.insertRow();
+                    const processIDcell = row.insertCell(0);
+                    const timeStampcell = row.insertCell(1);
+                    processIDcell.textContent = process.process_id;
+                    timeStampcell.textContent = new Date(process.timestamp).toLocaleString();
+                    processIDcell.style.border = '1px solid #000';
+                    timeStampcell.style.border = '1px solid #000';
+                });
+                document.getElementById('electrodeDetails').style.display = 'block';
+                createUpdateTable();
+                
+            } catch (error) {
+                console.error('Error retrieving batch details: ', error);
+            }
+        }
+        async function retrieveProcesses() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/process-test/get_processes/', {
+                    method: 'GET',
+                });
+                if (!response.ok) throw new Error(`HTTP error: Status: ${response.status}`);
+                const processes = await response.json();
+                populateProcessDropdown(processes);
+            } catch (error) {
+                console.error('Error retrieving processes: ', error);
+            }    
+        }
+        function populateProcessDropdown(processes) {
+            const dropdown = document.getElementById('new_process_ids');
+            dropdown.innerHTML = '';
+            processes.forEach(process => {
+                const option = document.createElement('option');
+                option.value = process.process_id;
+                option.text = `${process.process_id} - ${process.description}`;
+                dropdown.appendChild(option);
+            });
+            // Attach event listener once
+            if (!dropdown.hasAttribute('listener-attached')) {
+                dropdown.addEventListener('change', handleProcessSelection);
+                dropdown.setAttribute('listener-attached', 'true');
+            }
+        }
+        // Initialize an array to store selected processes and timestamps
+        const selectedProcessList = [];
+
+        function handleProcessSelection() {
+            const selectedOptions = Array.from(document.getElementById('new_process_ids').selectedOptions);
+            const selectedProcessContainer = document.getElementById('selectedProcessContainer');
+
+            // Track process ids that already have a timestamp input field created
+            const existingProcessIds = Array.from(selectedProcessContainer.querySelectorAll('.selected-process')).map(container => container.getAttribute('data-process-id'));
+
+            selectedOptions.forEach(option => {
+                const processId = option.value;
+
+                // Only add a new input field if it hasn't been created already
+                if (!existingProcessIds.includes(processId)) {
+                    const processContainer = document.createElement('div');
+                    processContainer.className = 'selected-process';
+                    processContainer.setAttribute('data-process-id', processId);
+
+                    // Display the process ID
+                    const label = document.createElement('span');
+                    label.textContent = `Process ID ${processId}: `;
+                    processContainer.appendChild(label);
+
+                    // Create timestamp input
+                    const timestampInput = document.createElement('input');
+                    timestampInput.type = 'datetime-local';
+                    timestampInput.className = 'new-timestamp';
+                    timestampInput.setAttribute('data-process-id', processId);
+                    processContainer.appendChild(timestampInput);
+
+                    // Create "Add" button
+                    const addButton = document.createElement('button');
+                    addButton.textContent = 'Add';
+                    addButton.type = 'button';
+                    addButton.onclick = () => addProcess(processId, timestampInput.value);
+                    processContainer.appendChild(addButton);
+
+                    selectedProcessContainer.appendChild(processContainer);
+                }
+            });
+
+            // Remove fields for deselected process IDs
+            Array.from(selectedProcessContainer.children).forEach(container => {
+                const processId = container.getAttribute('data-process-id');
+                if (!selectedOptions.some(option => option.value === processId)) {
+                    container.remove();
+                }
+            });
+        }
+
+        // Function to add selected process and timestamp to the Added Box
+        function addProcess(processId, timestamp) {
+            if (!timestamp) {
+                alert("Please select a timestamp before adding.");
+                return;
+            }
+
+            // Check if this process and timestamp are already added
+            const isAlreadyAdded = selectedProcessList.some(item => item.process_id === processId && item.timestamp === new Date(timestamp).toISOString());
+            if (isAlreadyAdded) {
+                alert("This process and timestamp are already added.");
+                return;
+            }
+
+            // Append to the selected process list
+            selectedProcessList.push({ process_id: processId, timestamp: new Date(timestamp).toISOString() });
+
+            // Display in the "Added Box"
+            const addedProcessContainer = document.getElementById('addedProcessContainer');
+            const addedProcessDisplay = document.createElement('div');
+            addedProcessDisplay.className = 'added-process-display';
+            addedProcessDisplay.textContent = `Process ID: ${processId}, Timestamp: ${new Date(timestamp).toLocaleString()}`;
+
+            // Add a remove button to allow deletion if needed
+            const removeButton = document.createElement('button');
+            removeButton.textContent = 'Remove';
+            removeButton.type = 'button';
+            removeButton.onclick = () => {
+                // Remove from display and from the list
+                addedProcessContainer.removeChild(addedProcessDisplay);
+                const index = selectedProcessList.findIndex(item => item.process_id === processId && item.timestamp === new Date(timestamp).toISOString());
+                if (index > -1) selectedProcessList.splice(index, 1);
+            };
+            addedProcessDisplay.appendChild(removeButton);
+
+            addedProcessContainer.appendChild(addedProcessDisplay);
+        }
+
+
+        async function updateElectrode() {
+            const token = localStorage.getItem('token');
+            const newProcessData = Array.from(document.querySelectorAll('.new-timestamp')).map(input => ({
+                process_id: input.getAttribute('data-process-id'),
+                timestamp: new Date(input.value).toISOString()
+            }));
+            console.log('new Process Data', newProcessData);
+            const batchLocation = document.getElementById('batch_location').value;
+            const batchId = document.getElementById('batch_id').value;
+
+            const updateData = {};
+            const fieldsToUpdate = ['batch_label', 'batch_description', 'wafer_label', 'wafer_description', 'wafer_design_id', 'sensor_label', 'sensor_description'];
+            fieldsToUpdate.forEach(field => {
+                const checkbox = document.getElementById(`update_${field}`);
+                const newValue = document.getElementById(`new_${field}`).value;
+                if (checkbox.checked && newValue) {
+                    updateData[field] = newValue;
+                }
+            });
+
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/test/v2/update/${batchLocation}/${batchId}/`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        wafer_ids: document.getElementById('wafer_ids').value,
+                        sensor_ids: document.getElementById('sensor_ids').value,
+                        new_process_data: newProcessData,
+                        updates: updateData
+                    })
+                });
+                if (!response.ok) throw new Error(`HTTP error: Status: ${response.status}`);
+                const data = await response.json();
+                console.log('Update response:', data);
+            } catch (error) {
+                console.error('Error updating electrode:', error);
+            }
+        }
+        document.getElementById('retrieveButton').addEventListener('click', retrieveData);
+        document.getElementById('updateButton').addEventListener('click', updateElectrode);
+        retrieveProcesses();
+    </script>
+</body>
+</html>

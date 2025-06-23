@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electrode Image Upload</title>
+	<link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+	<link rel="stylesheet" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        /* Update for header and navigation panel to allow dropdown visibility */
+		header {
+            background-color: #343a40; /* Dark blue header */
+            color: #fff; /* White text */
+            padding: 1rem;
+            text-align: center;
+            position: relative;
+            z-index: 1; /* Ensure header is not hidden, but dropdowns show above */
+        }
+        
+        .navigation-panel {
+            overflow: visible; /* Ensure that overflow content is visible */
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1; /* Position this layer below the search box suggestions */
+        }
+        
+        /* SearchBox and autocomplete styles */
+        .searchBox {
+            display: flex;
+            align-items: center;
+            position: relative;
+            width: 300px;  /* Adjust the width as needed */
+            margin-left: auto;
+            right: 20px;
+            z-index: 999; /* Ensures it's on top of other elements */
+        }
+        
+        .searchBox input {
+            padding: 5px;
+            font-size: 14px;
+            height: 30px; /* Adjust the height */
+            width: 100%;
+            box-sizing: border-box; /* Ensures the input's width includes padding and borders */
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        /* Dropdown for autocomplete suggestions */
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 35px;  /* Position below the search input field */
+            left: 0;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #fff;
+            z-index: 1000; /* Ensure dropdown shows above other elements */
+            max-height: 200px;  /* Limit the height */
+            overflow-y: auto;   /* Enable vertical scroll if suggestions overflow */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .autocomplete-suggestions div {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            color: black;
+        }
+        
+        .autocomplete-suggestions div:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-suggestions div:hover {
+            background-color: #f0f0f0;
+        }
+    
+        .autocomplete-active {
+            background-color: #e9e9e9;
+            color: black;
+        }
+
+        .info-icon::before {
+            content: "\1f6c8";
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .drop-area {
+            border: 2px dashed #ccc;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            display: flex; /* Added to make child elements flex items */
+            flex-direction: column; /* Align child elements vertically */
+            align-items: center; /* Center-align child elements horizontally */
+            margin-top: 100px;
+        }
+
+        .uploaded-info {
+            margin-top: 20px; /* Added margin to separate uploaded info from drop area */
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+        }
+
+        .thumbnail {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+
+        .thumbnailBoxItem {
+            position: relative;
+        }
+
+        .delete-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: transparent;
+            border: none;
+            color: red;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .info-box {
+            width: 30%;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .dropdown-container {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .dropdown {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        #processID {
+            width: 200px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .processListDropdown {
+            border: 1px solid #ccc;
+            max-height: 100px;
+            overflow-y: auto;
+            position: absolute;
+            background: white;
+            z-index: 991;
+            width: 250px;
+        }
+        .dropdown-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .dropdown-item:hover {
+            background-color: #f0f0f0;
+        }
+        
+        
+    </style>
+</head>
+<body>
+<header>
+    <h1>Electrode Image Upload</h1>
+    <!-- Navigation Panel-->
+		<div class="navigation-panel">
+			<a href="home_page.html">Home</a>
+			<div class="subnav">
+				<button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="process_encoder.html">Process Encoder</a>
+					<a href="process_views.html">Process List</a>
+				</div>
+			</div>
+			<div class="subnav">
+				<button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="batch_encoder.html">Batch Encoder</a>
+					<a href="batch_summary.html">Batch List</a>
+				</div>
+			</div>
+            <div class="subnav">
+				<button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="image_upload.html">Upload Images</a>
+					<a href="image_view.html">Electrode Images</a>
+				</div>
+			</div>
+			<a href="elec_update.html">Update Electrodes</a>
+            <div class="searchBox" id="searchBox">
+                <input type="text" id="searcH" placeholder="Search..." autofocus>
+                <div id="autocomplete-results" class="autocomplete-suggestions"></div>
+            </div>
+		</div>
+        <div id="user-dropdown" class="userDropdown">
+            <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+			<span id="user-name" class="user-name">Username</span>
+            <div class="userDropdown-content" id="userDropdown-content">
+                <button id="logoutBtn">Logout</button>
+            </div>
+        </div>
+</header>
+
+<div class="image-upload">
+    <label for="processID">Process ID:</label>
+    <input type="text" id="processInput" placeholder="Enter or select a process" oninput="filterProcesses()">
+    <span class="info-icon" title="List of Processes" onclick="showProcessInfo()"></span>
+    <div id="processDropdown" class="processListDropdown"></div>
+    <br><br>
+
+    <div id="dropArea" class="drop-area" ondrop="handleDrop(event)" ondragover="handleDragOver(event)">
+        <p>Drag and drop your image files here, or <label for="imageFile" onclick="selectImageFiles()">select image files</label>.</p>
+        <input type="file" id="imageFile" accept="image/*" multiple onchange="handleFiles(this.files)">
+        <!-- Display uploaded info here -->
+        <div class="uploaded-info">
+            <div class="info-box" id="thumbnailBox"></div>
+            <div class="info-box" id="electrodeBox"></div>
+            <div class="info-box" id="processIDBox"></div>
+        </div>
+    </div>
+</div>
+
+<button onclick="uploadImage()">Upload Image</button>
+
+<script>
+    var processList; // global variable
+
+    function filterProcesses() {
+        const input = document.getElementById('processInput').value.toLowerCase();
+        const dropdown = document.getElementById('processDropdown');
+
+        dropdown.innerHTML = '';
+
+        processList.forEach(process => {
+            if (process.process_id.toLowerCase().includes(input)) {
+                const option = document.createElement('div');
+                option.classList.add('dropdown-item');
+                option.textContent = `${process.process_id} - ${process.description}`;
+                option.onclick = () => selectProcess(process.process_id);
+                dropdown.appendChild(option);
+            }
+        });
+    }
+    //var processList; // global variable
+
+    // Function to populate Wafer Process ID dropdown
+    function selectProcess(processId) {
+        document.getElementById('processInput').value = processId;
+        document.getElementById('processDropdown').innerHTML = '';
+        document.getElementById('processDropdown').style.display = 'none';
+    }
+
+    // Show the dropdown when the input is clicked
+    document.getElementById('processInput').addEventListener('focus', () => {
+        const dropdown = document.getElementById('processDropdown');
+        dropdown.style.display = 'block'; // Make the dropdown visible
+        filterProcesses(); // Re-filter and display the dropdown contents
+    });
+
+    // Hide the dropdown when clicked outside of the input field or dropdown
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('processDropdown');
+        const input = document.getElementById('processInput');
+        if (!dropdown.contains(event.target) && event.target !== input) {
+            dropdown.style.display = 'none'; // Hide the dropdown
+        }
+    });
+
+
+    // Function to be called on page load
+    async function onPageLoad() {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch("http://127.0.0.1:8000/process-test/get_processes/", {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Token ${token}`,
+                }
+            });
+            if (!response.ok) {
+                console.errorText = await response.text();
+                console.error('HTTp error', response.status, errorText);
+                throw new Error('Unable to fetch processes.');
+            }
+            processList = await response.json();
+            console.log('Processes: ', processList);
+            // Populate the Wafer Process ID Dropdown
+            filterProcesses();
+        } catch (error) {
+            console.error('Error fetching processes:', error);
+        }
+    }
+
+    function showProcessInfo() {
+        const processInfoUrl = "process_views.html";
+        window.open(processInfoUrl, "_blank");
+    }
+
+
+
+    let electrodesData = []; // store fetched electrode data
+    let electrodeIdentifierList = []; // store electrode identifiers for each file
+    let imageData = []; // Defined globally so other functions can use its content.
+
+    async function fetchElectrodes() {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch("http://127.0.0.1:8000/test/electrode-dropdown/", {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Token ${token}`,
+                }
+            });
+            electrodesData = await response.json();
+            populateDropdown();
+        } catch (error) {
+            console.error('Error fetching electrodes: ', error);
+        }
+    }
+
+    function handleDragOver(event) {
+        event.preventDefault(); // By default, browsers may open dropped files in the window, this line prevents the default behavior
+    }
+
+    function handleDrop(event) {
+        event.preventDefault(); // By default, browsers may open dropped files in the window, this line prevents the default behavior
+        const dt = event.dataTransfer; // retrieves the 'DataTransfer' object associated with the drop event. dt contains info about the data being dragged and dropped
+        const files = dt.files; // retrieves the 'FilesList' object from the 'DataTransfer' object. FileList object contains a list of files that have been dropped onto the area
+        //handleFiles(files);
+
+        //const processID = document.getElementById('processID').value;
+        
+        const thumbnailBox = document.getElementById('thumbnailBox');
+        const electrodeBox = document.getElementById('electrodeBox');
+        const processIDBox = document.getElementById('processIDBox');
+
+        // Clear previous info
+        thumbnailBox.innerHTML = '';
+        electrodeBox.innerHTML = '';
+
+        // Iterate over each dropped file
+        for(let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const fileName = file.name;
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            console.log("Uploaded Filename:", fileName);
+
+            // Check if the file is an image
+            if(fileExtension === 'jpg' || fileExtension === 'jpeg' || fileExtension === 'png') {
+                // Create container to display file thumbnail, info, and delete icon
+                const thumbnailBoxItem = document.createElement('div');
+                thumbnailBoxItem.classList.add('thumbnailBoxItem');
+
+                const fileNameInfo = document.createElement('p');
+                fileNameInfo.textContent = `File: ${fileName}`;
+
+                // Delete icon for each image
+                const deleteButton = document.createElement('button');
+                deleteButton.innerHTML = '&#x2716;'; // x icon
+                deleteButton.classList.add('delete-button');
+                deleteButton.addEventListener('click', (event) => {
+                    const thumbnailBoxItem = event.target.closest('.thumbnailBoxItem');
+                    const index = Array.from(thumbnailBox.children).indexOf(thumbnailBoxItem);
+                    if (index !== -1) {
+                        const deletedImageData = imageData[index];
+                        const electrodeIdentifierToDelete = deletedImageData.identifier;
+                        const matchingElectrodePElements = document.querySelectorAll(`#electrodeBox p`);
+                        let electrodeBoxItemToRemove;
+                        matchingElectrodePElements.forEach((pElement) => {
+                            if (pElement.textContent.includes(electrodeIdentifierToDelete)) {
+                                electrodeBoxItemToRemove = pElement.parentNode;
+                            }
+                        });
+
+                        if (electrodeBoxItemToRemove) {
+                            const actualIndex = Array.from(electrodeBox.children).indexOf(electrodeBoxItemToRemove);
+                            imageData.splice(index, 1);
+                            electrodeIdentifierList.splice(actualIndex, 1);
+                            thumbnailBox.removeChild(thumbnailBoxItem);
+                            electrodeBoxItemToRemove.parentNode.removeChild(electrodeBoxItemToRemove);
+                        }
+                    }
+                });
+                
+                // Append file info to the thumbnailboxItem container then to the thumbnailbox
+                thumbnailBoxItem.appendChild(fileNameInfo);
+                thumbnailBoxItem.appendChild(deleteButton);
+                thumbnailBox.appendChild(thumbnailBoxItem);
+
+                // Parse filename and get matching electrode identifier
+                const electrodeIdentifier = getMatchingElectrode(files[i].name);
+                electrodeIdentifierList.push(electrodeIdentifier); // store the electrode ids for this file
+
+                const electrodeIdentifierInfo = document.createElement('p');
+                electrodeIdentifierInfo.textContent = `Electrode identifier: ${electrodeIdentifier}`;
+
+                // Append electrode info to the electrode box
+                const electrodeBoxItem = document.createElement('div'); // New div for each electrode identifier
+                electrodeBoxItem.appendChild(electrodeIdentifierInfo);
+                electrodeBox.appendChild(electrodeBoxItem);
+
+                // Create an object to store file and its identifier
+                const imageDataObject = {
+                    file: file,
+                    identifier: electrodeIdentifier
+                };
+                imageData.push(imageDataObject);
+                console.log('Image Data:', imageData);
+            }
+        }
+
+        // Display process ID in the processIDBox
+        const processInputValue = document.getElementById('processInput').value;
+        if (processInputValue) {
+            const processIDInfo = document.createElement('p');
+            processIDInfo.textContent = `Process ID: ${processInputValue}`;
+            processIDBox.innerHTML = '';
+            processIDBox.appendChild(processIDInfo);
+        } else {
+            const noProcessIDInfo = document.createElement('p');
+            noProcessIDInfo.textContent = `No Process ID selected.`;
+            processIDBox.appendChild(noProcessIDInfo);
+        }
+
+        //const processIDInfo = document.createElement('p');
+        //processIDInfo.textContent = `Process ID: ${processID}`;
+        //document.getElementById('processIDBox').appendChild(processIDInfo);
+        //processIDBox.appendChild(processIDInfo);
+
+        // Update electrodeIdentifierList for upload (outside of the loop)
+        electrodeIdentifierList = imageData.map(data => data.identifier);
+        console.log('Electrode Identifier List: ', electrodeIdentifierList);
+    }
+
+    async function handleFiles(files) {
+        const processID = document.getElementById('processInput').value;
+        
+        const thumbnailBox = document.getElementById('thumbnailBox');
+        const electrodeBox = document.getElementById('electrodeBox');
+        const processIDBox = document.getElementById('processIDBox');
+
+        // Clear previous info
+        thumbnailBox.innerHTML = '';
+        electrodeBox.innerHTML = '';
+
+        // Iterate over each uploaded file
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const fileName = file.name;
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            console.log("Uploaded filename:", fileName);
+
+            // Check if the file is an image
+            if (fileExtension === 'jpg' || fileExtension === 'jpeg' || fileExtension === 'png') {
+                // Create container to display file thumbnail, info and delete icon
+                const thumbnailBoxItem = document.createElement('div');
+                thumbnailBoxItem.classList.add('thumbnailBoxItem');
+                
+                const fileNameInfo = document.createElement('p');
+                fileNameInfo.textContent = `File: ${fileName}`;
+
+                // Delete icon for each image
+                const deleteButton = document.createElement('button');
+                deleteButton.innerHTML = '&#x2716;'; // x icon
+                deleteButton.classList.add('delete-button');
+                deleteButton.addEventListener('click', (event) => {
+                    const thumbnailBoxItem = event.target.closest('.thumbnailBoxItem');                       // locates the closest ancestor of the delete button that has the class '.thumbnailBoxItem'. This helps identify which thumbnail box item (containing the image file) the delete button belongs to.
+                    const index = Array.from(thumbnailBox.children).indexOf(thumbnailBoxItem);               // locates the index of the 'thumbnailBoxItem' within its parent 'thumbnailBox'. Helps identify the index of the image file and its corresponding data in the 'imageData' array
+                    if (index !== -1) {                                                                     // checks if the index of the 'thumbNailBoxItem' is valid. if '-1', thumbnailBoxItem was not found, no action taken 
+                        const deletedImageData = imageData[index];                                         // retrieves the data of the image file (including its identifier) from the 'imageData' array using the index obtained earlier
+                        const electrodeIdentifierToDelete = deletedImageData.identifier;                  // extracts the electrode identifier associated with the image file that will be deleted
+                        const matchingElectrodePElements = document.querySelectorAll(`#electrodeBox p`); // Since the 'p' elements contain the electrode identifiers, this selects all 'p' elements inside the '#electrodeBox'
+                        let electrodeBoxItemToRemove;
+                        matchingElectrodePElements.forEach((pElement) => {                              // Iterates over each selected 'p' element inside the 'electrodeBox'
+                            if (pElement.textContent.includes(electrodeIdentifierToDelete)) {          //  checks if the text content of the current 'p' element contains the electrode identifier to delete.
+                                electrodeBoxItemToRemove = pElement.parentNode;                       // Assigns the parent node of the matching 'p' element to 'electrodeBoxItemToRemove'. This parent node is the container ('div') that holds the electrode identifier information.
+                            }
+                        });
+
+                        if (electrodeBoxItemToRemove) {                                             // Checks if 'electrodeBoxItemToRemove' is valid.
+                            const actualIndex = Array.from(electrodeBox.children).indexOf(electrodeBoxItemToRemove);  // Finds the index of 'electrodeBoxItemToRemove' within its parent 'electrodeBox'
+                            imageData.splice(index, 1);                                                              // Removes the image file data from the 'imageData' array at the identified index
+                            electrodeIdentifierList.splice(actualIndex, 1);                                         // Removes the corresponding electrode identifier from the 'electrodeIdentifierList' at the identified index
+                            thumbnailBox.removeChild(thumbnailBoxItem);
+                            electrodeBoxItemToRemove.parentNode.removeChild(electrodeBoxItemToRemove);             // effectively deletes the paragraph element containing the electrode identifier
+                        }
+                    }
+                });
+
+                // Append file info to thumbnail box
+                thumbnailBoxItem.appendChild(fileNameInfo);
+                thumbnailBoxItem.appendChild(deleteButton);
+                thumbnailBox.appendChild(thumbnailBoxItem);
+
+                // Parse filename and get matching electrode identifier
+                const electrodeIdentifier = getMatchingElectrode(files[i].name);
+                electrodeIdentifierList.push(electrodeIdentifier); // Store the electrode ids for this file
+                
+                const electrodeIdentifierInfo = document.createElement('p');
+                electrodeIdentifierInfo.textContent = `Electrode Identifier: ${electrodeIdentifier}`;
+
+                // Append electrode info to electrode box
+                const electrodeBoxItem = document.createElement('div'); // New div for each electrode identifier
+                electrodeBoxItem.appendChild(electrodeIdentifierInfo);
+                electrodeBox.appendChild(electrodeBoxItem);
+
+                // Create an object to store file and its identifier
+                const imageDataObject = {
+                    file: file,
+                    identifier: electrodeIdentifier
+                };
+                imageData.push(imageDataObject);
+                console.log('Image Data: ', imageData)
+
+            }
+        }
+
+        // Display process ID
+        const processIDInfo = document.createElement('p');
+        processIDInfo.textContent = `Process ID: ${processID}`;
+        document.getElementById('processIDBox').appendChild(processIDInfo);
+        //processIDBox.appendChild(processIDInfo);
+
+        // Update electrodeIdentifierList for upload (outside of the loop)
+        electrodeIdentifierList = imageData.map(data => data.identifier);
+        console.log('Electrode Identifier List: ', electrodeIdentifierList);
+    }
+
+    function getMatchingElectrode(fileName) {
+        // Parse the fileName to extract the relevant identifier
+        const identifier = fileName.split('.')[0];
+
+        // Filter electrodesData to find matching electrode
+        const matchingElectrode = electrodesData.find(electrode => electrode.unique_identifier === identifier);
+        console.log("Match Electrode: ", matchingElectrode)
+
+        return matchingElectrode ? matchingElectrode.unique_identifier : 'N/A';
+    }
+    
+
+    async function uploadImage() {
+        const processID = document.getElementById('processInput').value;
+        const imageDataList = imageData;
+
+        const data = new FormData();
+
+        data.append('process_id', processID);
+        imageDataList.forEach(imageData => {
+            data.append('electrode_identifier', imageData.identifier);
+            data.append('image_files', imageData.file);
+        });
+        console.log(imageDataList)
+        console.log('Data to be sent', Array.from(data.entries()));
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://127.0.0.1:8000/test/image-upload/', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Token ${token}`,
+                },
+                body: data,
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('HTTP error details: ', response.status, errorText);
+                throw new Error('Failed to upload image');
+            }
+            alert('Image uploaded successfully!');
+            // Reload the page after successful upload.
+            window.location.reload();
+        } catch (error) {
+            console.error('Error uploading image', error);
+            alert('Error uploading image. Please try again.');
+        }
+    }
+
+    function populateDropdown() {
+        const electrodeBox = document.getElementById('electrodeBox');
+        const dropdown = document.createElement('select');
+        dropdown.classList.add('dropdown');
+
+        electrodesData.forEach(electrode => {
+            const option = document.createElement('option');
+            option.value = electrode.unique_identifier;
+            option.textContent = electrode.unique_identifier;
+            dropdown.appendChild(option);
+        });
+
+        electrodeBox.appendChild(dropdown);
+    }
+
+    function selectImageFiles() {
+        // Trigger file selection when "select image files" label is clicked
+        document.getElementById('imageFile').click();
+    }
+
+    window.onload = function () {
+        onPageLoad();
+        fetchElectrodes();
+        //onPageLoad();
+    }
+
+    //document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    //onPageLoad();
+</script>
+</body>
+</html>

@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Update 2</title>
+    <link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <style>
+        /* Styling for the larger dropdown */
+        #processIdContainer {
+            width: 500px;
+            border: 1px solid #000;
+            padding: 10px;
+            margin-left: 20px;
+            font-size: 16px;
+            height: 100px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .process-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            cursor: pointer; /* Make items look clickable */
+        }
+
+        .process-item:hover {
+            background-color: #add8e6;;
+        }
+
+        #selectedProcessBox {
+            width: 500px;
+            border: 1px solid #000;
+            padding: 10px;
+            margin-left: 50px;
+            font-size: 16px;
+            height: 100px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        #addedProcessBox {
+            width: 600px;
+            border: 1px solid #000;
+            padding: 10px;
+            margin-left: 20px;
+            font-size: 16px;
+            height: 100px;
+            overflow-y: auto;
+        }
+
+        .remove-button {
+            font-size: 12px; /* Smaller font size */
+            padding: 2px 5px; /* Less padding */
+            height: auto; /* Adjust height to fit content */
+            line-height: 1; /* Adjust line height for compact spacing */
+            margin-left: 10px;
+        }
+
+        .timestamp-container {
+            margin-top: 5px;
+        }
+
+        .selected-process {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .highlighted {
+            background-color: #add8e6; /* Light blue color for highlight */
+        }
+        
+        /* Optional: Style to ensure loader container is centered */
+        #overlay > div {
+            display: inline-block;
+            text-align: center;
+            margin-top: 20%;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 1rem;
+            width: 100%;
+        }
+        td, th {
+            border: 2px solid #ccc;
+            padding: 6px;
+            text-align: center;
+        }
+
+        .sensor-input-container {
+            display: flex;
+            align-items: center;
+            gap: 2.75rem;
+            margin-bottom: 1rem;
+            flex-wrap: nowrap;
+        }
+        
+        .sensor-input-container label {
+            white-space: nowrap;
+            font-weight: bold;
+        }
+        
+        .sensor-input-container input {
+            /*flex: 1; */
+            width: 700px; 
+            padding: 0.5rem;
+            font-size: 1rem;
+        }
+        
+        .sensor-input-container button {
+            padding: 0.5rem 1rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+            text-align: center;
+        }
+        
+        .sensor-input-container button:hover {
+            background-color: #45a049;
+        }
+
+        .sensor-description-input {
+            width: 100%;
+            max-width: 600px;
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .updateFields button {
+            width: auto;
+            box-sizing: border-box;
+            margin-top: 12px;
+            padding: 0.5rem 1rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+.waferForm button,
+.reset button {
+    width: 150px; /* optional: match widths for symmetry */
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    color: white;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.waferForm button {
+    background-color: #4CAF50;
+}
+
+.reset button {
+    background-color: #ec5660;
+}
+
+.waferForm {
+    display: flex;
+    align-items: center;
+    gap: 2.05rem;
+    margin-bottom: 1rem;
+    flex-wrap: nowrap;
+}
+
+.waferForm label {
+    white-space: nowrap;
+    font-weight: bold;
+}
+        
+
+        
+        
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Update Sensors 2</h1>
+        <div class="navigation-panel">
+            <a href="home_page.html">Home</a>
+            <div class="subnav">
+                <button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="process_encoder.html">Process Encoder</a>
+                    <a href="process_views.html">Process List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="batch_encoder.html">Batch Encoder</a>
+                    <a href="batch_summary.html">Batch List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="image_upload.html">Upload Images</a>
+                    <a href="image_view.html">Electrode Images List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Updates <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="update_test_5.html">Update Batch</a>
+                    <a href="sensor_update.html">Update Sensors</a>
+                </div>
+            </div>
+            <div id="user-dropdown" class="userDropdown">
+                <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+                <span id="user-name" class="user-name">Username</span>
+                <div class="userDropdown-content" id="userDropdown-content">
+                    <button id="logoutBtn">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div id="loader" class="loader"></div>
+    
+    <div id="overlay" style="
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0, 0, 0, 0.5); 
+    z-index: 9999; 
+    text-align: center; 
+    font-size: 20px; 
+    line-height: 100vh; 
+    color: white;">
+    <div>
+        Performing update. Please wait...
+        <div id="loader" class="loader"></div> <!-- Use the existing loader CSS -->
+    </div>
+    </div>
+
+    <div class="sensor-input-wrapper">
+        <form id="sensorForm" onsubmit="validateSensors(); return false;">
+            <h3 style="background-color: #C9CDE4;">Add Sensors</h3>
+            <div class="sensor-input-container">
+                <label for="u_id">By Sensor IDs:</label>
+                <input type="text" id="u_id" placeholder="e.g., M001-01-001, M001-02,024" required>
+                <button type="submit">Validate</button>
+            </div>
+        </form>
+
+        <!-- Vertical stack of wafer + reset -->
+        <div class="sensor-actions-vertical">
+            <div class="waferForm" id="waferForm">
+                <label>With Wafer Form</label>
+                <button id="navtoWF" onclick="navigatetoWaferForm()">Wafer Form</button>
+            </div>
+            <div class="reset" id="reset">
+                <button type="button" onclick="resetSensorState()">Clear Sensors</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="validSensors" id="validSensors" style="display: none;">
+        <h3 style="background-color: #C9CDE4;">Sensors to Update</h3>
+        <div id="validated-sensors-container" style="margin-top: 0rem;"></div>
+        <!--button id="submit-labels-btn" style="display: none;" onclick="submitLabels()">Submit Labels</button-->
+    </div>
+    
+    <div class="updateFields" id="updateFields" style="display: none;">
+        <form id="updateForm">
+            <h3 style="background-color: #C9CDE4;">Select Fields to Update</h3>
+            <table id="updateTable">
+                <tr>
+                    <th style="background-color: #ffffff;">Field</th>
+                    <th style="background-color: #ffffff;">Select</th>
+                    <th style="background-color: #ffffff;">Value</th>
+                </tr>
+            </table>
+            <h3 style="background-color: #C9CDE4">Process Details</h3>
+            <table id="processTable" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="border: 1px solid #000;">Process ID</th>
+                        <th style="border: 1px solid #000;">Description</th>
+                        <th style="border: 1px solid #000;">Timestamp</th>
+                        <th style="border: 1px solid #000;">Remove</th> <!-- New Remove Column -->
+                    </tr>
+                </thead>
+                <tbody id="processTableBody">
+                </tbody>
+            </table>
+            <div style="display: flex;">
+                <div id="processIdContainer">
+                    <h4>Process IDs</h4>
+                    <div id="processList"></div>
+                </div>
+
+                <div id="selectedProcessBox">
+                    <h4>Timestamp</h4>
+                    <div id="selectedProcessContainer"></div>
+                </div>
+
+            </div>
+
+            <div id="timestampContainerWrapper"></div>
+
+            <h3 style="background-color: #C9CDE4">Processes to be Added</h3>
+                <table id="addedProcessTable" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="border: 1px solid #000;">Process ID</th>
+                            <th style="border: 1px solid #000;">Description</th>
+                            <th style="border: 1px solid #000;">Timestamp</th>
+                            <th style="border: 1px solid #000;">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody id="addedProcessTableBody"></tbody>
+                </table>
+            <button type="button" id="updateButton">Update</button>
+        </form>
+    </div>
+
+     <script>
+        let labelOptions = [];                 // Fetched from the backend
+        let allValidatedSensors = [];         // Full list of validated sensors with data
+        let allOriginalSensorIds = [];        // Just the sensor IDs (original format)
+        let deleteList = [];
+        let processes = [];
+        let selectedProcessList = [];
+
+
+        // === 1. Fetch Available Labels ===
+        async function fetchLabels() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('http://127.0.0.1:8000/test/s_l/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (!response.ok) throw new Error(`HTTP error: Status: ${response.status}`);
+                labelOptions = await response.json();
+                console.log('Retrieved Labels: ', labelOptions)
+            } catch (error) {
+                console.error('Error loading labels:', error);
+            }
+        }
+
+        // === 2. Fetch Processes ===
+        async function retrieveProcesses() {
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch('http://127.0.0.1:8000/process-test/get_processes/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                processes = await response.json();
+                populateProcessDropdown(processes);
+                console.log('Available Processes:', processes);
+            } catch (err) {
+                console.error('Failed to fetch processes:', err);
+            }
+        }
+
+        function populateProcessDropdown(processes) {
+            const processList = document.getElementById('processList');
+            processList.innerHTML = '';
+
+            processes.forEach(process => {
+                const processContainer = document.createElement('div');
+                processContainer.className = 'process-item';
+                processContainer.setAttribute('data-process-id', process.process_id);
+
+                const processLabel = document.createElement('span');
+                processLabel.textContent = `${process.process_id} - ${process.description}`;
+
+                processContainer.appendChild(processLabel);
+                processList.appendChild(processContainer);
+
+                // Click even listener to highlight selected process and handle selection
+                processContainer.addEventListener('click', () => {
+                    highlightSelectedProcess(processContainer);
+                    handleProcessSelection(process.process_id);
+                });
+            });
+        }
+
+        function highlightSelectedProcess(selectedProcessContainer) {
+            // Remove highlight from previously selected process
+            document.querySelectorAll('#processList .process-item').forEach(item => {
+                item.classList.remove('highlighted');
+            });
+            // Add highlight to currently selected process
+            selectedProcessContainer.classList.add('highlighted');
+        }
+
+        function handleProcessSelection(processId) {
+           const selectedProcessContainer = document.getElementById('selectedProcessContainer');
+           selectedProcessContainer.innerHTML = '';
+
+           const selectedProcess = processes.find(item => item.process_id === processId);
+           const processDescription = selectedProcess ? selectedProcess.description : "N/A";
+
+           const processContainer = document.createElement('div');
+           processContainer.className = 'selected-process';
+           processContainer.setAttribute('data-process-id', processId);
+
+           const timestampInput = document.createElement('input');
+           timestampInput.type = 'datetime-local';
+           timestampInput.className = 'new-timestamp';
+           timestampInput.setAttribute('data-process-id', processId);
+           processContainer.appendChild(timestampInput);
+
+           const addButton = document.createElement('button');
+           addButton.type = 'button';
+           addButton.textContent = 'Add';
+           addButton.onclick = () => addProcesstoTable(processId, processDescription, timestampInput.value);
+           processContainer.appendChild(addButton);
+
+           selectedProcessContainer.appendChild(processContainer);
+        }
+
+        function addProcesstoTable(processId, processDescription, timestamp) {
+            if (!timestamp) {
+                alert("Please select a timestamp before adding.");
+                return;
+            }
+
+            // Check if process is already added
+            const addedProcessTableBody = document.getElementById('addedProcessTableBody');
+            if ([...addedProcessTableBody.rows].some(row => row.getAttribute('data-process-id') === processId)) {
+                alert('Process already added.');
+                return;
+            }
+
+            const row = addedProcessTableBody.insertRow();
+            row.setAttribute('data-process-id', processId);
+
+            const processIDcell = row.insertCell(0);
+            const descriptionCell = row.insertCell(1);
+            const timeStampcell = row.insertCell(2);
+            const removeButtonCell = row.insertCell(3);
+
+            processIDcell.textContent = processId;
+            descriptionCell.textContent = processDescription;
+            const date = new Date(timestamp);
+            const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}, ${date.toLocaleTimeString()}`;
+            timeStampcell.textContent = formattedDate;
+            processIDcell.style.border = '1px solid #000';
+            descriptionCell.style.border = '1px solid #000';
+            timeStampcell.style.border = '1px solid #000';
+            removeButtonCell.style.border = '1px solid #000';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.textContent = 'Remove';
+            removeBtn.onclick = () => {
+                // Remove row from the table
+                addedProcessTableBody.removeChild(row);
+
+                // Remove the proceess from the selected process list
+                const processIndex = selectedProcessList.findIndex(item => item.process_id === processId);
+                if (processIndex !== -1) {
+                    selectedProcessList.splice(processIndex, 1)
+                }
+            };
+
+            removeButtonCell.appendChild(removeBtn);
+
+            // Add the process to the selected process list
+            selectedProcessList.push({ process_id: processId, timestamp: new Date(timestamp).toISOString() });
+            console.log('Selected process list:', selectedProcessList);
+        }
+
+        function normalizeSensorId(id) {
+            const cleaned = id.trim().toUpperCase();
+            const match = cleaned.match(/^([A-Z])(\d{1,4})[-_](\d{1,4})[-_](\d{1,4})$/);
+
+            if (!match) return null;
+
+            const [, loc, batch, wafer, number] = match;
+
+            // Always pad from left, and trim extra digits from the right length
+            const paddedBatch = batch.padStart(3, '0').slice(-3);
+            const paddedWafer = wafer.padStart(2, '0').slice(-2);
+            const paddedNumber = number.padStart(3, '0').slice(-3);
+
+            return `${loc}${paddedBatch}-${paddedWafer}-${paddedNumber}`;
+        }
+
+
+        async function validateSensors() {
+            const loader = document.getElementById('loader');
+            loader.style.display = 'block';
+
+            let sensorInput = document.getElementById('u_id');
+            let rawInput = sensorInput.value;
+
+            let ids = rawInput.split(',')
+                .map(id => id.trim())
+                .filter(id => id.length > 0);
+
+            let failedNormalization = [];
+            let normalizedMap = {};  // Map original -> normalized
+
+            const normalizedIds = ids.map(id => {
+                const normalized = normalizeSensorId(id);
+                if (!normalized) {
+                    failedNormalization.push(id);
+                } else {
+                    normalizedMap[normalized] = id;
+                }
+                return normalized;
+            }).filter(Boolean);
+
+            if (!normalizedIds.length) {
+                alert("No valid sensor IDs provided.");
+                loader.style.display = 'none';
+                return;
+            }
+
+            sensorInput.value = normalizedIds.join(', ');
+
+            try {
+                const res = await fetch('http://127.0.0.1:8000/test/verify_sensors_3/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ sensors: normalizedIds }),
+                });
+
+                const result = await res.json();
+                const verifiedSensors = Array.isArray(result) ? result : (result.validated_sensors || []);
+                const verifiedIds = verifiedSensors.map(s => s.unique_identifier);
+
+                // Detect not found and already added sensors
+                const notFound = normalizedIds.filter(id => !verifiedIds.includes(id));
+                const alreadyAdded = verifiedIds.filter(id => allOriginalSensorIds.includes(id));
+
+                const newOriginal = Object.keys(normalizedMap);
+                mergeWithExistingSensors(verifiedSensors, newOriginal);
+                createUpdateTable();
+                document.getElementById('updateFields').style.display = 'block';
+
+
+                // Construct user feedback alert
+                let messages = [];
+                if (failedNormalization.length) {
+                    messages.push(`Invalid syntax: ${failedNormalization.join(', ')}`);
+                }
+                if (notFound.length) {
+                    messages.push(`Not found in database: ${notFound.join(', ')}`);
+                }
+                if (alreadyAdded.length) {
+                    messages.push(`Already added: ${alreadyAdded.join(', ')}`);
+                }
+                if (messages.length) {
+                    alert("Some sensors were not added:\n\n" + messages.join('\n'));
+                }
+
+                saveCurrentSensorStateToLocalStorage();
+
+            } catch (err) {
+                console.error('Verification failed', err);
+                alert('Sensor verification failed due to an unexpected error.');
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+
+        function renderResults(sensors) {
+            const container = document.getElementById('validated-sensors-container');
+            container.innerHTML = '';
+            container.style.maxHeight = '400px';
+            container.style.overflowY = 'auto';
+
+            if (!sensors.length) {
+                container.innerHTML = '<p>No validated sensors to display.</p>';
+                return;
+            }
+
+            // Flatten all sensors into a single array to render in a 4x4 table
+            const table = document.createElement('table');
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            table.style.marginBottom = '0rem';
+            table.style.marginTop = '0rem';
+            //table.style.fontSize = '0.85rem'
+
+            let row;
+            sensors.forEach((sensor, index) => {
+                if (index % 7 === 0) {
+                    row = document.createElement('tr');
+                    row.style.height = '30px';
+                    table.appendChild(row);
+                }
+
+                const cell = document.createElement('td');
+                cell.textContent = sensor.unique_identifier;
+                cell.style.border = '1px solid #ccc';
+                cell.style.padding = '4px';
+                cell.style.textAlign = 'center';
+                cell.style.lineHeight = '1.2';
+                row.appendChild(cell);
+            });
+
+            container.appendChild(table);
+            document.getElementById('validSensors').style.display = 'block';
+
+            // Optionally call a function to populate the Process Details section
+            populateProcessDetails(sensors);
+        }
+
+        function populateProcessDetails(sensors) {
+            console.log('Populating process details for sensors', sensors);
+            const tbody = document.getElementById('processTableBody');
+            tbody.innerHTML = '';
+
+            // Group by batch (first 4 chars of unique_identifier)
+            const batchGroups = {};
+            sensors.forEach(sensor => {
+                const batch = sensor.unique_identifier.slice(0, 4);
+                if (!batchGroups[batch]) {
+                    batchGroups[batch] = [];
+                }
+                batchGroups[batch].push(sensor);
+            });
+
+            for (const [batch, batchSensors] of Object.entries(batchGroups)) {
+                // Collect unique processes from all sensors in this batch
+                const seen = new Set();
+                const uniqueProcesses = [];
+
+                batchSensors.forEach(sensor => {
+                    (sensor.sensor_processes || []).forEach(proc => {
+                        const key = `${proc.process_id}-${proc.timestamp}`;
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            uniqueProcesses.push({ batch, ...proc });
+                        }
+                    });
+                });
+
+                // Render batch header row
+                const headerRow = document.createElement('tr');
+                const headerCell = document.createElement('td');
+                headerCell.colSpan = 4;
+                headerCell.textContent = `Batch: ${batch}`;
+                headerCell.style.fontWeight = 'bold';
+                headerCell.style.backgroundColor = '#ccdae3';
+                headerRow.appendChild(headerCell);
+                tbody.appendChild(headerRow);
+
+                // Render each process row
+                uniqueProcesses.forEach(proc => {
+                    const row = document.createElement('tr');
+
+                    const tdId = document.createElement('td');
+                    tdId.textContent = proc.process_id;
+                    tdId.style.border = '1px solid #000';
+
+                    const tdDesc = document.createElement('td');
+                    tdDesc.textContent = proc.description;
+                    tdDesc.style.border = '1px solid #000';
+
+                    const tdTime = document.createElement('td');
+                    const date = new Date(proc.timestamp);
+                    const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}, ${date.toLocaleTimeString()}`;
+                    tdTime.textContent = formattedDate;
+                    tdTime.style.border = '1px solid #000';
+
+                    const tdRemove = document.createElement('td');
+                    tdRemove.style.border = '1px solid #000';
+                    const removeBtn = document.createElement('button');
+                    removeBtn.textContent = 'Remove';
+                    removeBtn.type = 'button';
+                    removeBtn.style.backgroundColor = '#f44336';
+                    removeBtn.style.color = '#fff';
+                    removeBtn.style.border = 'none';
+                    removeBtn.style.padding = '5px 10px';
+                    removeBtn.style.cursor = 'pointer';
+                    //removeBtn.onclick = () => removeProcess(proc.process_id, proc.batch); // define this function
+                    removeBtn.addEventListener('click', () => {
+                        const processIndex = deleteList.findIndex(
+                            item => item.process_id === proc.process_id && item.timestamp === new Date(proc.timestamp).toISOString()
+                        );
+
+                        if (processIndex === -1) {
+                            deleteList.push({ process_id: proc.process_id, timestamp: new Date(proc.timestamp).toISOString() });
+                            console.log('Process added to delete list', proc.process_id);
+                            console.log(deleteList);
+                            row.style.backgroundColor = '#ffcccc';
+                            removeBtn.textContent = 'Undo';
+                            removeBtn.style.backgroundColor = '#4CAF50';
+                        } else {
+                            deleteList.splice(processIndex, 1);
+                            console.log('Process removed from delete list', proc.process_id);
+                            console.log(deleteList);
+                            row.style.backgroundColor = '';
+                            removeBtn.textContent = 'Remove';
+                            removeBtn.style.backgroundColor = '#f44336';
+
+                        }
+                    })
+                    tdRemove.appendChild(removeBtn);
+
+                    row.appendChild(tdId);
+                    row.appendChild(tdDesc);
+                    row.appendChild(tdTime);
+                    row.appendChild(tdRemove);
+
+                    tbody.appendChild(row);
+                });
+            }
+            console.log('tbody after populate:', tbody.innerHTML);
+        }
+
+        function mergeWithExistingSensors(newData, newOriginal) {
+            // Handle both raw array or response object with validated_sensors
+            const validated = Array.isArray(newData) ? newData : (newData.validated_sensors || []);
+            console.log('Validated:', validated);
+
+            const existingIds = new Set(allValidatedSensors.map(s => s.unique_identifier));
+            const uniqueNewValidated = validated.filter(s => !existingIds.has(s.unique_identifier));
+
+            allValidatedSensors = [...allValidatedSensors, ...uniqueNewValidated];
+
+            const newOriginalUnique = newOriginal.filter(id => !allOriginalSensorIds.includes(id));
+            allOriginalSensorIds = [...allOriginalSensorIds, ...newOriginalUnique];
+
+            renderResults(allValidatedSensors);
+            saveCurrentSensorStateToLocalStorage();
+        }
+
+
+        function createUpdateTable() {
+            const table = document.getElementById('updateTable');
+            const fieldsToUpdate = ['label', 'sensor_description'];
+            while (table.rows.length > 1) table.deleteRow(1);
+
+            fieldsToUpdate.forEach((field, index) => {
+                const row = table.insertRow(index + 1);
+                const fieldCell = row.insertCell(0);
+                fieldCell.textContent = field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+                const checkboxCell = row.insertCell(1);
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `update_${field}`;
+                checkbox.name = `update_${field}`;
+                checkboxCell.appendChild(checkbox);
+
+                const valueCell = row.insertCell(2);
+                if (field === 'label') {
+                    const select = document.createElement('select');
+                    select.id = 'new_label';
+                    select.name = 'new_label';
+
+                    if (labelOptions.length > 0) {
+                        const defaultOpt = document.createElement('option');
+                        defaultOpt.value = '';
+                        defaultOpt.innerText = 'Select...';
+                        select.appendChild(defaultOpt)
+
+                        labelOptions.forEach(label => {
+                            const option = document.createElement('option');
+                            option.value = label.id || label.name || label;
+                            option.textContent = label.name || label;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.innerText = 'No labels available';
+                        select.appendChild(option);
+                    }
+
+                    valueCell.appendChild(select);
+                    select.addEventListener('change', createInputListener(checkbox,select))
+                } else if (field === 'sensor_description') {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.id = 'new_sensor_description';
+                    input.name = 'new_sensor_description';
+                    input.placeholder = 'Enter description...';
+                    valueCell.appendChild(input);
+                    input.addEventListener('input', createInputListener(checkbox, input));
+                }
+            });
+        }
+
+        function createInputListener(checkbox, inputElement) {
+            return function () {
+                checkbox.checked = inputElement.value.trim() != '';
+            };
+        }
+
+        function saveCurrentSensorStateToLocalStorage() {
+            localStorage.setItem('wafer_validated_sensors_cache', JSON.stringify({
+                validated: allValidatedSensors,
+                original: allOriginalSensorIds
+            }));
+        }
+        function loadCachedSensors() {
+            const cached = localStorage.getItem('wafer_validated_sensors_cache');
+            
+            if (cached) {
+                const { validated, original } = JSON.parse(cached);
+
+                if (Array.isArray(validated) && validated.length > 0) {
+                    allValidatedSensors = validated;
+                    allOriginalSensorIds = original;
+                    console.log('All Validated Sensors List', allValidatedSensors.map(s => s.unique_identifier));
+
+                    renderResults(validated);
+                    createUpdateTable();
+                    document.getElementById('updateFields').style.display = 'block';
+                } else {
+                    // Cache exists but is empty — treat like no data
+                    console.log('Cache found but contains no validated sensors.');
+                    document.getElementById('updateFields').style.display = 'none';
+                }
+            } else {
+                // No cache at all
+                document.getElementById('updateFields').style.display = 'none';
+            }
+        }
+
+
+        function navigatetoWaferForm() {
+            saveCurrentSensorStateToLocalStorage();
+            window.location.href = 'wafer_form.html';
+        }
+
+        async function submitUpdates() {
+            const loader = document.getElementById('loader');
+            const overlay = document.getElementById('overlay');
+            loader.style.display = 'block';
+            overlay.style.display = 'block';
+            const token = localStorage.getItem('token');
+
+            const labelCheckbox = document.getElementById('update_label');
+            const descCheckbox = document.getElementById('update_sensor_description');
+
+            const payload = {
+                u_ids: allValidatedSensors.map(s => s.unique_identifier),
+                updates: {},
+                new_process_data: selectedProcessList || [],
+                delete_list: deleteList || []
+            };
+
+            if (labelCheckbox && labelCheckbox.checked) {
+                const labelSelect = document.getElementById('new_label');
+                if (labelSelect && labelSelect.value) {
+                    payload.updates.label = labelSelect.value;
+                }
+            }
+
+            if (descCheckbox && descCheckbox.checked) {
+                const descInput = document.getElementById('new_sensor_description');
+                if (descInput && descInput.value) {
+                    payload.updates.sensor_description = descInput.value;
+                }
+            }
+            console.log("Submitting payload to the backed", payload);
+
+            try {
+                const res = await fetch('http://127.0.0.1:8000/test/sensor/bulk-update/', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.status === 404) {
+                    const errorMsg = await res.text();
+                    console.error('Sensor not found:', errorMsg);
+                    alert('Sensor not found');
+                    return;
+                }
+
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    console.error('HTTP error details:', res.status, errorText);
+                    throw new Error('HTTP error! Status: ' + res.status);
+                    alert("An error occured while updating sensors.")
+                }
+
+                const result = await res.json();
+                console.log('Update result:', result);
+                alert("Sensor update successful");
+
+                selectedProcessList = [];
+                deleteList = [];
+
+                document.getElementById('addedProcessTableBody').innerHTML = '';
+                document.getElementById('processTableBody').innerHTML = '';
+                window.location.reload();
+            } catch (err) {
+                console.error('Update failed', err);
+            } finally {
+                loader.style.display = 'none';
+                overlay.style.display = 'none';
+            }
+            
+        }
+
+        function resetSensorState() {
+            localStorage.removeItem('wafer_validated_sensors_cache');
+            allValidatedSensors = [];
+            allOriginalSensorIds = [];
+            deleteList = [];
+            renderResults([]);
+            const sensorInput = document.getElementById('u_id');
+            sensorInput.value = '';
+            document.getElementById('updateFields').style.display = 'none';
+            //alert('Sensor data has been reset.');
+        }
+
+
+
+        const navEntries = performance.getEntriesByType("navigation");
+        if (navEntries.length > 0 && navEntries[0].type === "reload") {
+            console.log("Page was reloaded. Clearing sensor cache.");
+            localStorage.removeItem('wafer_validated_sensors_cache');
+        }
+
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            await fetchLabels();
+            await retrieveProcesses();
+
+            loadCachedSensors();
+
+            document.getElementById('loader').style.display = 'none';
+        });
+
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('updateButton').addEventListener('click', submitUpdates);
+
+    </script>
+</body>
+</html>  
+    

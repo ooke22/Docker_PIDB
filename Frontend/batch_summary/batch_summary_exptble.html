@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expandable Table View</title>
+    <link rel="stylesheet" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/style.css">
+    <style>
+        /* Update for header and navigation panel to allow dropdown visibility */
+        header {
+            background-color: #343a40; /* Dark blue header */
+            color: #fff; /* White text */
+            padding: 1rem;
+            text-align: center;
+            position: relative;
+            z-index: 1; /* Ensure header is not hidden, but dropdowns show above */
+        }
+        
+        .navigation-panel {
+            overflow: visible; /* Ensure that overflow content is visible */
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1; /* Position this layer below the search box suggestions */
+        }
+        
+        /* SearchBox and autocomplete styles */
+        .searchBox {
+            display: flex;
+            align-items: center;
+            position: relative;
+            width: 300px;  /* Adjust the width as needed */
+            margin-left: auto;
+            right: 20px;
+            z-index: 999; /* Ensures it's on top of other elements */
+        }
+        
+        .searchBox input {
+            padding: 5px;
+            font-size: 14px;
+            height: 30px; /* Adjust the height */
+            width: 100%;
+            box-sizing: border-box; /* Ensures the input's width includes padding and borders */
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        /* Dropdown for autocomplete suggestions */
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 35px;  /* Position below the search input field */
+            left: 0;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #fff;
+            z-index: 1000; /* Ensure dropdown shows above other elements */
+            max-height: 200px;  /* Limit the height */
+            overflow-y: auto;   /* Enable vertical scroll if suggestions overflow */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .autocomplete-suggestions div {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            color: black;
+        }
+        
+        .autocomplete-suggestions div:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-suggestions div:hover {
+            background-color: #f0f0f0;
+        }
+
+        .autocomplete-active {
+            background-color: #e9e9e9;
+            color: black;
+        }
+
+        /* Ellipsis Menu */
+        .ellipsis-menu {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            cursor: pointer;
+            font-size: 35px;
+            color: #333;
+        }
+
+        .ellipsis-menu:hover {
+            box-shadow: 0px 0px 20px 0px rgba(0,0,0,0.2);
+            /*background-color: #6f7fe9;*/
+
+        }
+
+        /* Menu Options (Dropdown) */
+        .menu-options {
+            display: none; /* Hidden by default */
+            position: absolute;
+            top: 32px;
+            right: 2px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+        }
+
+        .menu-options button {
+            width: 100%;
+            padding: 8px 12px;
+            text-align: left;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .menu-options button:hover {
+            background-color: #f0f0f0;
+        }
+
+        #logo-img {
+            display: inline-block;
+            position: absolute;
+            top: 1%;
+            left: 0%;
+            width: 5rem;
+            height: 6rem;
+            z-index: 1;
+            background: transparent;
+        
+            
+        }
+        
+        #logo-img img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        
+        .expTable {
+            padding: 2px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+            margin: 0.5rem;
+            text-align: center;
+            width: auto; /* Adjust card width as needed */
+            display: block;
+            /*justify-content: space-between;*/
+            align-items: center;
+        }
+
+        .expTable tr:hover {
+            cursor: pointer;
+		    background-color: #C9CDE4;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #C9CDE4;
+        }
+        
+        /*.expandable-row {
+            display: none;
+        }*/
+
+        /* Batch ID Styling */
+        td.batch-id {
+            color: #007bff; /* Blue color */
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Dropdown Icon Rotation */
+        .dropdown-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .expanded .dropdown-icon {
+            transform: rotate(180deg);
+        }
+
+        /* Expandable Row Animation */
+        .expandable-row {
+            display: none;
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Batch List</h1>
+        <!--div id="logo-img" class="logo-img">
+			<img src="C:\PI Local Tests\Frontend\Logo_W - PI.png" alt="Company Logo">
+		</div-->
+        <!-- Navigation Panel-->
+		<div class="navigation-panel">
+			<a href="home_page.html">Home</a>
+			<div class="subnav">
+				<button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="process_encoder.html">Process Encoder</a>
+					<a href="process_views.html">Process List</a>
+				</div>
+			</div>
+			<div class="subnav">
+				<button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="batch_encoder.html">Batch Encoder</a>
+					<a href="batch_summary.html">Batch List</a>
+				</div>
+			</div>
+            <div class="subnav">
+				<button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="image_upload.html">Upload Images</a>
+					<a href="image_view.html">Electrode Images</a>
+				</div>
+			</div>
+			<a href="elec_update.html">Update Electrodes</a>
+            <div class="searchBox" id="searchBox">
+                <input type="text" id="searcH" placeholder="Search..." autofocus>
+                <div id="autocomplete-results" class="autocomplete-suggestions"></div>
+            </div>
+		</div>
+        
+        <div id="user-dropdown" class="userDropdown">
+            <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+			<span id="user-name" class="user-name">Username</span>
+            <div class="userDropdown-content" id="userDropdown-content">
+                <button id="logoutBtn">Logout</button>
+            </div>
+        </div>
+
+        <div id="logo-img" class="logo-img">
+			<!--img src="C:\PI Local Tests\Frontend\Logo_W - PI.png" alt="Company Logo"-->
+            <img src="C:\PI Local Tests\Frontend\icon.png" alt="Company Logo">
+		</div>
+    </header>
+
+    <div class="expTable">
+        <table>
+            <thead>
+                <tr>
+                    <th>Batch ID</th>
+                    <th>Total Wafers</th>
+                    <th>Total Sensors</th>
+                    <th>Batch Label</th>
+                    <th>Batch Description</th>
+                </tr>
+            </thead>
+            <tbody id="batchTableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="loader" class="loader"></div>
+
+    <div id="nextBatch" class="nextBatch">
+        <button id="more">Load More</button>
+    </div>
+    
+    <script>
+    let currentBatchID = null;  // Global variable for storing batch ID
+
+    let currentPage = 1;
+    let hasNextPage = true;
+
+    async function fetchBatches() {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://127.0.0.1:8000/test/batches/?page=${currentPage}`, {
+                method: 'GET',
+                headers: { 'Authorization': `Token ${token}` }
+            });
+            const responseData = await response.json();
+            console.log('Response Data:', responseData);
+            if (!responseData.next) {
+                hasNextPage = false;
+                document.getElementById('more').style.display = 'none';
+            }
+            const batches = responseData.results;
+            console.log(batches);
+            const batchTableBody = document.getElementById('batchTableBody');
+            
+            batches.forEach(batch => {
+                const batchID = `${batch.batch_location}${batch.batch_id.toString().padStart(3, '0')}`;
+                const row = document.createElement('tr');
+    
+                row.innerHTML = `
+                    <td class="batch-id" onclick="toggleDetails('${batch.batch_location}', '${batch.batch_id}', this)">
+                        <span class="dropdown-icon"></span>${batchID}
+                    </td>
+                    <td>${batch.total_wafers}</td>
+                    <td>${batch.total_sensors}</td>
+                    <td>${batch.batch_label || 'N/A'}</td>
+                    <td>${batch.batch_description}</td>
+                `;
+                
+                const detailsRow = document.createElement('tr');
+                detailsRow.classList.add('expandable-row');
+                detailsRow.id = `details-${batchID}`;
+                detailsRow.innerHTML = `
+                    <td colspan="5">
+                        <div id="loader-${batchID}" style="display: none;">Loading...</div>
+                        <table id="processTable-${batchID}" style="display: none; width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th>Process ID</th>
+                                    <th>Description</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="processTableBody-${batchID}"></tbody>
+                        </table>
+                    </td>
+                `;
+                
+                batchTableBody.appendChild(row);
+                batchTableBody.appendChild(detailsRow);
+            });
+        } catch (error) {
+            console.log('Error retrieving batches:', error);
+        } finally {
+            document.getElementById('loader').style.display = 'none';
+        }
+    }
+    
+    async function retrieveData(batchLocation, batchId, batchID) {
+        const loader = document.getElementById(`loader-${batchID}`);
+        const processTable = document.getElementById(`processTable-${batchID}`);
+        const processTableBody = document.getElementById(`processTableBody-${batchID}`);
+    
+        loader.style.display = 'block';
+        processTable.style.display = 'none';
+        processTableBody.innerHTML = '';
+    
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://127.0.0.1:8000/test/v4/detail/${batchLocation}/${batchId}/`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+    
+            if (!response.ok) throw new Error(`HTTP error: Status: ${response.status}`);
+    
+            const data = await response.json();
+            console.log('Retrieved Data: ', data);
+    
+            data.sensor_processes.forEach(process => {
+                const row = processTableBody.insertRow();
+                const processIDcell = row.insertCell(0);
+                const descriptionCell = row.insertCell(1);
+                const timestampCell = row.insertCell(2);
+    
+                processIDcell.textContent = process.process_id;
+                descriptionCell.textContent = process.description ? process.description : "N/A";
+                
+                const date = new Date(process.timestamp);
+                const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}, ${date.toLocaleTimeString()}`;
+                timestampCell.textContent = formattedDate;
+    
+                // Style table cells
+                [processIDcell, descriptionCell, timestampCell].forEach(cell => {
+                    cell.style.border = '1px solid #000';
+                    cell.style.padding = '5px';
+                });
+            });
+    
+            loader.style.display = 'none';
+            processTable.style.display = 'table';
+    
+        } catch (error) {
+            console.log('Error retrieving details:', error);
+            loader.style.display = 'none';
+        }
+    }
+    
+    function toggleDetails(batchLocation, batchId, element) {
+        const batchID = `${batchLocation}${batchId.toString().padStart(3, '0')}`;
+        const detailsRow = document.getElementById(`details-${batchID}`);
+        
+        if (detailsRow.style.display === 'none' || detailsRow.style.display === '') {
+            detailsRow.style.display = 'table-row';
+            currentBatchID = batchID;  // Store global batch ID
+            retrieveData(batchLocation, batchId, batchID);
+        } else {
+            detailsRow.style.display = 'none';
+        }
+    
+        element.classList.toggle('expanded');
+    }
+
+    document.getElementById('more').addEventListener('click', function() {
+        if (!hasNextPage) return; 
+        currentPage++;
+        fetchBatches();
+    });
+
+    fetchBatches();
+        
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+﻿parameter,unit,value,description
+insulation_hardbake_ramp_up_duration,min,210,
+insulation_hardbake_cure_temp,degC,250,
+insulation_hardbake_cure_duration,min,180,
+insulation_hardbake_ramp_down_duration,min,480,

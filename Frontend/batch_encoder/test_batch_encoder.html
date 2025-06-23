@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch Encoder</title>
+    <link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+    <link rel="stylesheet" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        .info-icon::before {
+            content: "\1f6c8";
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        #wafer_process_checkbox_list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+          }
+          
+          #wafer_process_checkbox_list label {
+            display: flex;
+            align-items: center;
+          }
+          
+          #wafer_process_checkbox_list input[type="checkbox"] {
+            margin-right: 5px;
+          }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Batch Encoder</h1>
+        <!-- Navigation Panel-->
+        <div class="navigation-panel">
+            <a href="home_page.html">Home</a>
+            <div class="subnav">
+                <button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="process_encoder.html">Process Encoder</a>
+                    <a href="process_views.html">Process List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="batch_encoder.html">Batch Encoder</a>
+                    <a href="batch_summary.html">Batch List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="image_upload.html">Upload Images</a>
+                    <a href="image_view.html">Electrode Images</a>
+                </div>
+            </div>
+            <a href="elec_update.html">Update Electrodes</a>
+        </div>
+
+        <div id="user-dropdown" class="userDropdown">
+            <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+            <span id="user-name" class="user-name">Username</span>
+            <div class="userDropdown-content" id="userDropdown-content">
+                <button id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <table id="batchtable">
+        <tr>
+            <td style="background-color: lightblue;">Batch Location</td>
+            <td><input type="text" id="batch_location" placeholder="Enter a letter"></td>
+        </tr>
+        <tr>
+            <td style="background-color: lightblue;">Batch ID</td>
+            <td><input type="text" id="batch_id" placeholder="Enter a number"></td>
+        </tr>
+        <tr>
+            <td style="background-color: lightblue;">Total Wafers</td>
+            <td><input type="text" id="total_wafers" placeholder="Enter a number"></td>
+        </tr>
+        <tr>
+            <td style="background-color: lightblue;">Total Sensors per wafer</td>
+            <td><input type="text" id="total_sensors" placeholder="Enter a number"></td>
+        </tr>
+        <!--tr>
+            <td style="background-color: lightblue;">Total Electrodes per sensor</td>
+            <td><input type="text" id="total_electrodes" placeholder="Enter a number"></td>
+        </tr-->
+        <tr>
+            <td>Batch Label</td>
+            <td><input type="text" id="batch_label" placeholder="Enter a string"></td>
+        </tr>
+        <tr>
+            <td>Batch Description</td>
+            <td><textarea id="batch_description" rows="4" cols="50" style="height: 100px;" placeholder="Enter a string"></textarea></td>
+        </tr>
+        <tr>
+            <td>Wafer Label</td>
+            <td><input type="text" id="wafer_label" placeholder="Enter a string"></td>
+        </tr>
+        <tr>
+            <td>Wafer Description</td>
+            <td><textarea id="wafer_description" rows="4" cols="50" style="height: 100px;" placeholder="Enter a string"></textarea></td>
+        </tr>
+        <tr>
+            <td>Wafer Design ID</td>
+            <td><input type="text" id="wafer_design_id" placeholder="Enter a number"></td>
+        </tr>
+
+        <tr>
+            <td style="background-color: lightblue;">Wafer Process ID</td>
+            <td>
+                <label for="wafer_process_id_dropdown">Select Wafer Process IDs:</label>
+                <div id="wafer_process_checkbox_list">
+                    <!-- Dynamic checkbox-->
+                </div>
+                <!--input type="text" id="wafer_process_id" placeholder="Enter or select a process" list="processes"-->
+                <datalist id="processes"></datalist><span class="info-icon" title="List of Processes"></span>
+            </td>
+        </tr>
+
+        <tr>
+            <td>Wafer Build Time</td>
+            <td><input type="datetime-local" id="wafer_build_time" placeholder="Enter a date"></td>
+        </tr>
+        <tr>
+            <td>Sensor Label</td>
+            <td><input type="text" id="sensor_label" placeholder="Enter a string"></td>
+        </tr>
+        <tr>
+            <td>Sensor Description</td>
+            <td><textarea id="sensor_description" rows="4" cols="50" style="height: 100px;" placeholder="Enter a string"></textarea></td>
+        </tr>
+        <!--tr>
+            <td>Electrode Type</td>
+            <td><input type="text" id="electrode_type" placeholder="Enter a string"></td>
+        </tr>
+        <tr>
+            <td>Electrode Label</td>
+            <td><input type="text" id="electrode_label" placeholder="Enter a string"></td>
+        </tr>
+        <tr>
+            <td>Electrode Description</td>
+            <td><textarea id="electrode_description" rows="4" cols="50" style="height: 100px;" placeholder="Enter a string"></textarea></td>
+        </tr-->
+    </table>
+
+    <button id="postBatchData">Import</button>
+    <div style="background-color: #C9CDE4">
+        <p><b>Call return</b></p>
+        <p id="error-output" style="color: red; margin-top: 10px;">Status message</p>
+    </div>
+
+    <script>
+        // Function to update the dropdown with Process IDs
+        function handleCheckboxUpdate(processList) {
+            var checkboxContainer = document.getElementById('wafer_process_checkbox_list');
+
+            if (checkboxContainer) {
+                checkboxContainer.innerHTML = ''; // Clear previous options
+
+                processList.forEach(function (process) {
+                    var checkboxLabel = document.createElement('label');
+                    var checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = process.process_id; // Value set to process_id
+                    checkbox.name = 'wafer_process_id';
+
+                    // Create timestamp input field
+                    var timestampInput = document.createElement('input');
+                    timestampInput.type = 'datetime-local';
+                    timestampInput.name = 'wafer_process_timestamp';
+
+                    checkboxLabel.appendChild(checkbox);
+                    checkboxLabel.appendChild(document.createTextNode(process.process_id));
+                    checkboxLabel.appendChild(timestampInput); // Append timestamp input next to checkbox
+                    checkboxContainer.appendChild(checkboxLabel);
+                });
+            }
+        }
+
+        // Function to populate the checkbox with process IDs on page load
+        async function onPageLoad() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('http://127.0.0.1:8000/process-test/get_processes/', {
+                    method: 'GET',
+                    
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('HTTP error details:', response.status, errorText);
+                    throw new Error('Unable to fetch processes.');
+                }
+
+                const processList = await response.json();
+                handleCheckboxUpdate(processList); // Populate checkbox
+            } catch (error) {
+                console.error('Error fetching processes:', error);
+                alert('Error fetching processes. Please try again');
+            }
+        }
+
+        function showProcessInfo() {
+            const processInforUrl = "https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/process_views.html"; 
+            window.open(processInforUrl, "_blank");
+        }
+
+        // Function to handle POST request to batch_encoder
+        async function postBatchData() {
+            var fields = ["batch_location", "batch_id", "batch_label", "batch_description", "total_wafers", "total_sensors", "wafer_label", "wafer_description", 
+                        "wafer_design_id", "wafer_build_time", "sensor_label", "sensor_description"];
+            
+            var elem = {};  // Object to collect form field values
+        
+            // Loop through each field and collect values
+            fields.forEach(field => {
+                var element = document.getElementById(field);
+                if (element) {
+                    // Only format to ISO if the field is a date and has a valid value
+                    if (field === "wafer_build_time" && element.value) {
+                        const dateValue = new Date(element.value);
+                        if (!isNaN(dateValue.getTime())) {  // Check if date is valid
+                            elem[field] = dateValue.toISOString();
+                        } else {
+                            elem[field] = null;  // Or set to an empty string/null if invalid
+                        }
+                    } else {
+                        elem[field] = element.value;
+                    }
+                }
+            });
+        
+            // Get selected wafer process IDs and timestamps
+            var selectedProcesses = [];
+            document.querySelectorAll('input[name="wafer_process_id"]:checked').forEach((checkbox, index) => {
+                const timestampField = checkbox.parentNode.querySelector('input[name="wafer_process_timestamp"]');
+                const timestamp = timestampField ? new Date(timestampField.value) : null;
+                selectedProcesses.push({
+                    process_id: checkbox.value,
+                    timestamp: timestamp && !isNaN(timestamp.getTime()) ? timestamp.toISOString() : null
+                });
+            });
+        
+            elem['wafer_processes'] = selectedProcesses;
+        
+            console.log('Batch Data', JSON.stringify(elem));
+        
+            // POST request
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('http://127.0.0.1:8000/test/batch/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(elem)
+                });
+        
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('HTTP error details:', response.status, errorText);
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+        
+                const responseData = await response.json();
+                console.log('Response Data:', responseData);
+                if (response.status === 201) {
+                    document.getElementById('error-output').innerText = 'Batch Created Successfully!';
+                    alert('Batch created successfully!');
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('Error posting data', error);
+                document.getElementById('error-output').innerText = `Error: ${error.message}`;
+                throw error;
+            }
+        }
+        
+
+
+        window.onload = function() {
+            //fetchUserInfo();
+            //startLogoutTimer();
+            onPageLoad();
+        }
+
+        document.querySelector('.info-icon').addEventListener('click', showProcessInfo);
+
+        document.getElementById('postBatchData').addEventListener('click', postBatchData);
+
+        //document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    </script>
+
+</body>
+
+</html>

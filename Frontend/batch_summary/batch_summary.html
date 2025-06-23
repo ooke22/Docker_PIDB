@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch Summary</title>
+    <link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+    <link rel="stylesheet" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <style>
+        /* Update for header and navigation panel to allow dropdown visibility */
+        header {
+            background-color: #343a40; /* Dark blue header */
+            color: #fff; /* White text */
+            padding: 1rem;
+            text-align: center;
+            position: relative;
+            z-index: 1; /* Ensure header is not hidden, but dropdowns show above */
+        }
+        
+        .navigation-panel {
+            overflow: visible; /* Ensure that overflow content is visible */
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1; /* Position this layer below the search box suggestions */
+        }
+        
+        /* SearchBox and autocomplete styles */
+        .searchBox {
+            display: flex;
+            align-items: center;
+            position: relative;
+            width: 300px;  /* Adjust the width as needed */
+            margin-left: auto;
+            right: 20px;
+            z-index: 999; /* Ensures it's on top of other elements */
+        }
+        
+        .searchBox input {
+            padding: 5px;
+            font-size: 14px;
+            height: 30px; /* Adjust the height */
+            width: 100%;
+            box-sizing: border-box; /* Ensures the input's width includes padding and borders */
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        /* Dropdown for autocomplete suggestions */
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 35px;  /* Position below the search input field */
+            left: 0;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #fff;
+            z-index: 1000; /* Ensure dropdown shows above other elements */
+            max-height: 200px;  /* Limit the height */
+            overflow-y: auto;   /* Enable vertical scroll if suggestions overflow */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .autocomplete-suggestions div {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            color: black;
+        }
+        
+        .autocomplete-suggestions div:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-suggestions div:hover {
+            background-color: #f0f0f0;
+        }
+
+        .autocomplete-active {
+            background-color: #e9e9e9;
+            color: black;
+        }
+
+        /* Ellipsis Menu */
+        .ellipsis-menu {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            cursor: pointer;
+            font-size: 35px;
+            color: #333;
+        }
+
+        .ellipsis-menu:hover {
+            box-shadow: 0px 0px 20px 0px rgba(0,0,0,0.2);
+            /*background-color: #6f7fe9;*/
+
+        }
+
+        /* Menu Options (Dropdown) */
+        .menu-options {
+            display: none; /* Hidden by default */
+            position: absolute;
+            top: 32px;
+            right: 2px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+        }
+
+        .menu-options button {
+            width: 100%;
+            padding: 8px 12px;
+            text-align: left;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .menu-options button:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* Batch Card Styling */
+        .batch_card {
+            position: relative;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            /*width: 300px 
+            transition: box-shadow 0.3s ease;
+            cursor: pointer;
+            text-align: center*/
+        }
+
+        #logo-img {
+            display: inline-block;
+            position: absolute;
+            top: 1%;
+            left: 0%;
+            width: 5rem;
+            height: 6rem;
+            z-index: 1;
+            background: transparent;
+        
+          
+        }
+        
+        #logo-img img {
+           width: 100%;
+           height: auto;
+           border-radius: 8px;
+        }
+    
+    </style>
+
+</head>
+<body>
+    <header>
+        <h1>List of Batches</h1>
+        <!--div id="logo-img" class="logo-img">
+			<img src="C:\PI Local Tests\Frontend\Logo_W - PI.png" alt="Company Logo">
+		</div-->
+        <!-- Navigation Panel-->
+		<div class="navigation-panel">
+			<a href="home_page.html">Home</a>
+			<div class="subnav">
+				<button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="process_encoder.html">Process Encoder</a>
+					<a href="process_views.html">Process List</a>
+				</div>
+			</div>
+			<div class="subnav">
+				<button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="batch_encoder.html">Batch Encoder</a>
+					<a href="batch_summary.html">Batch List</a>
+				</div>
+			</div>
+            <div class="subnav">
+				<button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="image_upload.html">Upload Images</a>
+					<a href="image_view.html">Electrode Images</a>
+				</div>
+			</div>
+			<a href="elec_update.html">Update Electrodes</a>
+            <div class="searchBox" id="searchBox">
+                <input type="text" id="searcH" placeholder="Search..." autofocus>
+                <div id="autocomplete-results" class="autocomplete-suggestions"></div>
+            </div>
+		</div>
+        
+        <div id="user-dropdown" class="userDropdown">
+            <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+			<span id="user-name" class="user-name">Username</span>
+            <div class="userDropdown-content" id="userDropdown-content">
+                <button id="logoutBtn">Logout</button>
+            </div>
+        </div>
+
+        <div id="logo-img" class="logo-img">
+			<!--img src="C:\PI Local Tests\Frontend\Logo_W - PI.png" alt="Company Logo"-->
+            <img src="C:\PI Local Tests\Frontend\icon.png" alt="Company Logo">
+		</div>
+    </header>
+
+    
+    <div id="batchSummary" class="card-container">
+        <!-- Cards will be dynamically added here-->
+    </div>
+
+    <div id="loader" class="loader"></div>
+
+    <div id="nextBatch" class="nextBatch">
+        <button id="more">Load More</button>
+    </div>
+
+    <script>
+        //TODO: Add Delete elipses/three dot menu button
+        //var batchLocation = '';
+        //var batchID = int('');
+
+        async function fetchBatches() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('http://127.0.0.1:8000/test/batches_3/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Token ${token}`,
+                    }
+                });
+
+                const responseData = await response.json();
+                console.log('Response Data: ', responseData);
+
+                // Stop if there's no next page
+                if (!responseData.next) {
+                    hasNextPage = false;
+                    document.getElementById('more').style.display = 'none';
+                }
+
+                const batches = responseData.results;
+                console.log("Batches: ", batches);
+
+                const cardContainer = document.getElementById('batchSummary');
+                batches.forEach(batch => {
+                    const card = document.createElement('div');
+                    card.classList.add('batch_card');
+
+                    // Display batch information
+                    card.innerHTML = `
+                        <h2>${batch.batch_location}${batch.batch_id.toString().padStart(3, '0')}</h2>
+                        <h4>Process IDs: ${batch.sensor_processes.join(', ')}</h4>
+                        <p>Wafers: ${batch.total_wafers}</p>
+                        <p>Sensors per Wafer: ${batch.total_sensors}</p>
+                        <p>Batch Label: ${batch.batch_label || 'N/A'}</p>
+                        <p>Batch Description: ${batch.batch_description || 'N/A'}</p>
+
+                        <span class="ellipsis-menu" title="Options">⋮</span>
+                        <div class="menu-options">
+                            <button class="update-btn">Update</button>
+                            <button class="delete-btn">Delete</button>
+                        </div>
+                        `;
+
+                        // Event listeners for the ellipsis menu
+                        const ellipsisMenu = card.querySelector('.ellipsis-menu');
+                        const menuOptions = card.querySelector('.menu-options');
+                        ellipsisMenu.addEventListener('click', (event) => {
+                            event.stopPropagation();
+                            closeAllMenus();
+                            // Toggle visibility of the menu options
+                            menuOptions.style.display = menuOptions.style.display === 'block' ? 'none' : 'block';
+                        });
+
+                       // Event listener for update button
+                       const updateBtn = card.querySelector('.update-btn');
+                       updateBtn.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        handleUpdate(batch);
+                       });
+
+                       // Event listener for delete button
+                       const deleteBtn = card.querySelector('.delete-btn');
+                       deleteBtn.addEventListener('click', (event) => {
+                        event.stopPropagation(); // Prevents card click from firing
+                        handleDelete(batch);
+                       });
+
+                        // Click event for each card to redirect user to batch_details html page
+                        card.addEventListener('click', function() {
+                            selectedBatch(batch)
+                        });
+
+                        cardContainer.appendChild(card);
+                })
+            } catch (error) {
+                console.log('Error retrieving batches: ', error);
+            } finally {
+                // Hide loading animation when data fetching is complete.
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
+
+        // Function to close all ellipsis menus
+        function closeAllMenus() {
+            const allMenus = document.querySelectorAll('.menu-options');
+            allMenus.forEach(menu => {
+                menu.style.display = 'none';
+            });
+        }
+
+        // Close menus when clicking outside
+        document.addEventListener('click', () => {
+            closeAllMenus();
+        });
+
+        function handleUpdate(batch) {
+            if(confirm(`Update batch: ${batch.batch_location}${batch.batch_id}?`)) {
+                localStorage.setItem('batchtoUpdate', JSON.stringify(batch));
+                window.location.href = 'sudo_update.html';
+            }
+        }
+
+        async function handleDelete(batch) {
+            if(confirm(`Are you sure you want to delete batch ${batch.batch_location}${batch.batch_id.toString().padStart(3, '0')}?`)) {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await fetch(`http://127.0.0.1:8000/test/batches/delete/${batch.batch_location}/${batch.batch_id}/`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Token ${token}`
+                        }
+                    });
+
+                    let responseData = null;
+                    if(response.status !== 204) {
+                        responseData = await response.json();
+                    }
+                    console.log('Response Data: ', responseData);
+
+                    if (!response.ok) {
+                        const errorText = response.statusText.error
+                        console.log(errorText);
+                        alert(`Failed to delete batch: ${response.statusText}`);
+                    } else {
+                        const successMsg = responseData?.message || `Batch ${batch.batch_location}${batch.batch_id} deleted successfully!`
+                        alert(successMsg);
+
+                        const cards = document.querySelectorAll('.batch_card');
+                        cards.forEach(card => {
+                            const cardHeading = card.querySelector('h2');
+                            if (cardHeading && cardHeading.textContent == `${batch.batch_location}${batch.batch_id.toString().padStart(3, '0')}`) {
+                                card.remove();
+                            }
+                        })
+                    }
+                } catch (error) {
+                    console.error('Error deleting batch:', error);
+                }
+            }
+        }
+
+        function filterTable() {
+            const input = document.getElementById('searchInput').value.toUpperCase();
+            const filterBy = document.getElementById('filterBy').value;
+            const cards = document.querySelectorAll('.batch_card');
+
+            cards.forEach(card => {
+                const locationText = card.querySelector('h2').textContent.split(':')[1].trim().toUpperCase();
+                const idText = card.querySelector('h3').textContent.split(':')[1].trim().toUpperCase();
+                const processText = card.querySelector('h4').textContent.split(':')[1].trim().toUpperCase();
+
+                let showCard = false;
+
+                if (filterBy === 'all') {
+                    showCard = locationText.includes(input) || idText.includes(input) || processText.includes(input);
+                } else if (filterBy === 'location') {
+                    showCard = locationText.includes(input);
+                } else if (filterBy === 'id') {
+                    showCard = idText.includes(input);
+                } else if (filterBy === 'process') {
+                    showCard = processText.includes(input);
+                }
+
+                if (showCard) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function selectedBatch(batch) {
+            localStorage.setItem('selectedBatch', JSON.stringify(batch));
+            window.location.href = 'batch_info.html'; // Redirect to batch information page
+        }
+
+
+
+        window.onload = function() {
+            //fetchUserInfo();
+            fetchBatches();
+            //startLogoutTimer();
+        }
+
+        
+
+    
+
+    </script>
+
+</body>
+</html>

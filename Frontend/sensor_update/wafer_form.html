@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wafer Form</title>
+    <link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <style>
+        table {
+            border-collapse: collapse;
+            margin-top: 1rem;
+            width: 100%;
+        }
+        td, th {
+            border: 2px solid #ccc;
+            padding: 0.6px;
+            text-align: center;
+        }
+        .wafer-header th {
+            width: 150px;
+            white-space: nowrap;
+        }
+        .wafer-header .input-wrapper {
+            display: inline-block;
+            width: auto;
+        }
+        #waferInput {
+            width: 150px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Retrieve and Update Sensor Page(5 v2)</h1>
+        <div class="navigation-panel">
+            <a href="home_page.html">Home</a>
+            <div class="subnav">
+                <button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="process_encoder.html">Process Encoder</a>
+                    <a href="process_views.html">Process List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="batch_encoder.html">Batch Encoder</a>
+                    <a href="batch_summary.html">Batch List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="image_upload.html">Upload Images</a>
+                    <a href="image_view.html">Electrode Images</a>
+                </div>
+            </div>
+            <a href="elec_update.html">Update Electrodes</a>
+        </div>
+        <div id="user-dropdown" class="userDropdown">
+            <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+            <span id="user-name" class="user-name">Username</span>
+            <div class="userDropdown-content" id="userDropdown-content">
+                <button id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <table id="wafer-header">
+        <thead>
+            <tr class="wafer-header">
+                <th class="wafer-header-th" colspan="3">
+                    Wafer: <div class="input-wrapper"><input type="text" id="waferInput" placeholder="eg. M100-62"></div>
+                </th>
+            </tr>
+        </thead>
+    </table>
+    <table id="sensor-table">
+        <tbody id="sensor-body"></tbody>
+    </table>
+
+    <button id="submitBtn">Submit Selected</button>
+
+    <div id="validated-sensors-container" style="margin-top: 2rem;"></div>
+    <button id="submit-labels-btn" style="display: none;" onclick="submitLabels()">Submit Labels</button>
+
+    <script>
+        let labels = [];
+        let validatedSensors = [];
+    
+        async function retrieveLabels() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('http://127.0.0.1:8000/test/s_l/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (!response.ok) throw new Error(`HTTP error: Status: ${response.status}`);
+                labels = await response.json();
+                console.log("Labels retrieved:", labels);
+            } catch (error) {
+                console.error('Error retrieving labels', error);
+            }
+        }
+    
+        const totalSensors = 210;
+    
+        function createVerticalTable() {
+            const tbody = document.getElementById('sensor-body');
+            tbody.innerHTML = '';
+            const numCols = 10; 
+            const numRows = Math.ceil(totalSensors / numCols);
+    
+            for (let row = 0; row < numRows; row++) {
+                const tr = document.createElement('tr');
+                for (let col = 0; col < numCols; col++) {
+                    const sensorIndex = row + col * numRows + 1;
+                    const td = document.createElement('td');
+                    if (sensorIndex <= totalSensors) {
+                        const padded = String(sensorIndex).padStart(3, '0');
+                        td.innerHTML = `<label><input type="checkbox" value="${padded}">${padded}</label>`;
+                    }
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+        }
+
+        function readStorage() {
+            const cached = localStorage.getItem('wafer_validated_sensors_cache');
+            if (cached) {
+                const { validated } = JSON.parse(cached);
+                console.log('Restored from cache', validated);
+                validatedSensors = validated;
+            } else {
+                validatedSensors = [];
+            }
+        }
+    
+        async function submitSelected() {
+            const waferRaw = document.getElementById('waferInput').value.trim();
+            const match = waferRaw.match(/^([A-Z])(\d{3})-(\d{2})$/i);
+            if (!match) {
+                alert("Enter wafer in format M100-62 or A012-21");
+                return;
+            }
+    
+            const [, batchLocation, batchId, waferId] = match;
+            const checked = [...document.querySelectorAll('input[type="checkbox"]:checked')];
+    
+            if (checked.length === 0) {
+                alert("No sensors selected.");
+                return;
+            }
+    
+            const sensorIds = checked.map(input => {
+                const number = input.value;
+                return `${batchLocation}${batchId}-${waferId}-${number}`;
+            });
+    
+            try {
+                console.log('Sensor Ids to be sent: ', sensorIds)
+                const res = await fetch('http://127.0.0.1:8000/test/verify_sensors_3/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ sensors: sensorIds })
+                });
+
+                if (!res.ok) {
+                    const errMsg = await res.text();
+                    alert('Sensor validation failed.');
+                    return false;
+                }
+
+                const validated = await res.json();
+                const sensors = validated.validated_sensors;
+
+                // merge new sensors with exisiting ones
+                validatedSensors = [...new Set([...validatedSensors, ...sensors])];
+                console.log("Validated Sensors:", validatedSensors);
+                //renderLabelTable(validatedSensors);
+                // Save validated abnd original sensors to localstorage
+                localStorage.setItem('wafer_validated_sensors_cache', JSON.stringify({
+                    validated: validatedSensors,
+                    original: [...new Set([...sensorIds])]
+                }));
+
+                return true;
+
+                // redirect to sensor_update.html
+                //window.location.href = 'sensor_update_2.html';
+            } catch (err) {
+                console.error('Verification failed', err);
+                alert('An error occured during validation');
+                return false;
+            }
+        }
+
+        async function navigatetoSensorPage() {
+            readStorage();
+            const success = await submitSelected();
+            if (success) {
+                window.location.href = 'test_sensor_update.html'
+                console.log('Success', validatedSensors);
+            }
+        }
+        
+    
+        function renderLabelTable(sensors) {
+            const container = document.getElementById('validated-sensors-container');
+            const table = document.createElement('table');
+            table.border = '1';
+    
+            const header = document.createElement('tr');
+            ['Sensor ID', 'Label'].forEach(text => {
+                const th = document.createElement('th');
+                th.innerText = text;
+                header.appendChild(th);
+            });
+            table.appendChild(header);
+    
+            sensors.forEach(sensorId => {
+                const tr = document.createElement('tr');
+    
+                const tdId = document.createElement('td');
+                tdId.innerText = sensorId;
+    
+                const tdLabel = document.createElement('td');
+                const select = document.createElement('select');
+    
+                if (labels.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.innerText = 'No labels found';
+                    select.appendChild(option);
+                } else {
+                    const defaultOpt = document.createElement('option');
+                    defaultOpt.value = '';
+                    defaultOpt.innerText = 'Select...';
+                    select.appendChild(defaultOpt);
+    
+                    labels.forEach(label => {
+                        const option = document.createElement('option');
+                        option.value = label.name;
+                        option.innerText = label.name;
+                        select.appendChild(option);
+                    });
+                }
+    
+                tdLabel.appendChild(select);
+                tr.appendChild(tdId);
+                tr.appendChild(tdLabel);
+                table.appendChild(tr);
+            });
+    
+            container.innerHTML = '';
+            container.appendChild(table);
+            document.getElementById('submit-labels-btn').style.display = 'inline-block';
+        }
+    
+        async function submitLabels() {
+            const rows = document.querySelectorAll('#validated-sensors-container table tr');
+            const results = [];
+    
+            for (let i = 1; i < rows.length; i++) {
+                const cells = rows[i].children;
+                const sensorId = cells[0].innerText;
+                const label = cells[1].querySelector('select').value;
+    
+                if (!label) {
+                    alert(`Please select a label for sensor ${sensorId}`);
+                    return;
+                }
+    
+                results.push({ sensor_id: sensorId, label });
+            }
+    
+            try {
+                const res = await fetch('http://127.0.0.1:8000/test/assign_labels_3/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ sensor_labels: results })
+                });
+    
+                const data = await res.json();
+                alert("Labels submitted successfully!");
+                console.log(data);
+            } catch (error) {
+                console.error('Error submitting labels:', error);
+            }
+        }
+        
+        document.getElementById('submitBtn').addEventListener('click', navigatetoSensorPage);
+        document.addEventListener('DOMContentLoaded', () => {    
+            // Initial load
+            retrieveLabels();
+            createVerticalTable();
+            readStorage();
+        })
+    </script>
+    
+</body>
+</html>

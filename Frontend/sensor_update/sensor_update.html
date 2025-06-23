@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Update</title>
+    <link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <style>
+        /* Styling for the larger dropdown */
+        #processIdContainer {
+            width: 500px;
+            border: 1px solid #000;
+            padding: 10px;
+            margin-left: 20px;
+            font-size: 16px;
+            height: 100px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .process-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            cursor: pointer; /* Make items look clickable */
+        }
+
+        .process-item:hover {
+            background-color: #add8e6;;
+        }
+
+        #selectedProcessBox {
+            width: 500px;
+            border: 1px solid #000;
+            padding: 10px;
+            margin-left: 50px;
+            font-size: 16px;
+            height: 100px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        #addedProcessBox {
+            width: 600px;
+            border: 1px solid #000;
+            padding: 10px;
+            margin-left: 20px;
+            font-size: 16px;
+            height: 100px;
+            overflow-y: auto;
+        }
+
+        .remove-button {
+            font-size: 12px; /* Smaller font size */
+            padding: 2px 5px; /* Less padding */
+            height: auto; /* Adjust height to fit content */
+            line-height: 1; /* Adjust line height for compact spacing */
+            margin-left: 10px;
+        }
+
+        .timestamp-container {
+            margin-top: 5px;
+        }
+
+        .selected-process {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .highlighted {
+            background-color: #add8e6; /* Light blue color for highlight */
+        }
+        
+        /* Optional: Style to ensure loader container is centered */
+        #overlay > div {
+            display: inline-block;
+            text-align: center;
+            margin-top: 20%;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 1rem;
+            width: 100%;
+        }
+        td, th {
+            border: 2px solid #ccc;
+            padding: 6px;
+            text-align: center;
+        }
+
+        .sensor-input-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            flex-wrap: nowrap;
+        }
+        
+        .sensor-input-container label {
+            white-space: nowrap;
+            font-weight: bold;
+        }
+        
+        .sensor-input-container input {
+            flex: 1;
+            /*width: 40px; */
+            padding: 0.5rem;
+            font-size: 1rem;
+        }
+        
+        .sensor-input-container button {
+            padding: 0.5rem 1rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        
+        .sensor-input-container button:hover {
+            background-color: #45a049;
+        }
+
+        .sensor-description-input {
+            width: 100%;
+            max-width: 600px;
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Update Sensors</h1>
+        <div class="navigation-panel">
+            <a href="home_page.html">Home</a>
+            <div class="subnav">
+                <button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="process_encoder.html">Process Encoder</a>
+                    <a href="process_views.html">Process List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="batch_encoder.html">Batch Encoder</a>
+                    <a href="batch_summary.html">Batch List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="image_upload.html">Upload Images</a>
+                    <a href="image_view.html">Electrode Images List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Updates <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="update_test_5.html">Update Batch</a>
+                    <a href="sensor_update.html">Update Sensors</a>
+                </div>
+            </div>
+            <div id="user-dropdown" class="userDropdown">
+                <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+                <span id="user-name" class="user-name">Username</span>
+                <div class="userDropdown-content" id="userDropdown-content">
+                    <button id="logoutBtn">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div id="loader" class="loader"></div>
+    
+    <div id="overlay" style="
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0, 0, 0, 0.5); 
+    z-index: 9999; 
+    text-align: center; 
+    font-size: 20px; 
+    line-height: 100vh; 
+    color: white;">
+    <div>
+        Performing update. Please wait...
+        <div id="loader" class="loader"></div> <!-- Use the existing loader CSS -->
+    </div>
+    </div>
+
+    <form id="sensorForm" onsubmit="validateSensors(); return false;">
+        <div class="sensor-input-container" id="sensor-input-container">
+            <label for="u_id">Enter Sensor IDs:</label>
+            <input type="text" id="u_id"  placeholder="e.g., M001-01-001, M001-02,024" required>
+            <button type="submit">Validate</button>
+        </div>
+    </form>
+
+    <div class="waferForm" id="waferForm">Select sensors using wafer form
+        <button id="navtoWF" onclick="navigtetoWaferForm()">Wafer Form</button>
+    </div>
+
+    <div class="validSensors" id="validSensors" style="display: none;">
+        <h3 style="background-color: #C9CDE4;">Sensors to Update</h3>
+        <div id="validated-sensors-container" style="margin-top: 2rem;"></div>
+        <button id="submit-labels-btn" style="display: none;" onclick="submitLabels()">Submit Labels</button>
+    </div>  
+    
+    <script>
+        let sensors_to_be_validated = [];
+        let validatedSensors = [];
+        let labels = [];
+    
+        async function retrieveLabels() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('http://127.0.0.1:8000/test/s_l/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (!response.ok) throw new Error(`HTTP error: Status: ${response.status}`);
+                labels = await response.json();
+                console.log("Labels retrieved:", labels);
+            } catch (error) {
+                console.error('Error retrieving labels', error);
+            }
+        }
+    
+        async function validateSensors() {
+            const loader = document.getElementById('loader');
+            loader.style.display = 'block';
+    
+            const sensor_ids = document.getElementById('u_id').value;
+    
+            // Clean and parse input
+            sensors_to_be_validated = sensor_ids.split(',').map(id => id.trim()).filter(id => id);
+    
+            if (sensors_to_be_validated.length === 0) {
+                alert("Please enter at least one sensor ID.");
+                loader.style.display = 'none';
+                return;
+            }
+    
+            try {
+                const res = await fetch('http://127.0.0.1:8000/test/verify_sensors_2/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ sensors: sensors_to_be_validated })
+                });
+                validatedSensors = await res.json();
+                console.log('Validated Sensors: ', validatedSensors);
+    
+                // Render results after backend response
+                renderResults(validatedSensors, sensors_to_be_validated);
+            } catch (err) {
+                console.error('Verification failed', err);
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+    
+        function renderResults(validIDs, originalIDs) {
+            const container = document.getElementById('validated-sensors-container');
+            container.innerHTML = '';  // Clear previous content
+    
+            const table = document.createElement('table');
+            table.border = '1';
+            table.style.marginBottom = '1rem';
+    
+            // Header row
+            const header = document.createElement('tr');
+            ['Sensor ID', 'Label', 'Sensor Description'].forEach(text => {
+                const th = document.createElement('th');
+                th.innerText = text;
+                th.style.backgroundColor = '#C9CDE4';
+                header.appendChild(th);
+            });
+            table.appendChild(header);
+    
+            // Valid sensors table rows
+            validIDs.forEach(sensorId => {
+                const tr = document.createElement('tr');
+    
+                const tdId = document.createElement('td');
+                tdId.innerText = sensorId;
+    
+                const tdLabel = document.createElement('td');
+                const select = document.createElement('select');
+    
+                if (labels.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.innerText = 'No labels found';
+                    select.appendChild(option);
+                } else {
+                    const defaultOpt = document.createElement('option');
+                    defaultOpt.value = '';
+                    defaultOpt.innerText = 'Select...';
+                    select.appendChild(defaultOpt);
+    
+                    labels.forEach(label => {
+                        const option = document.createElement('option');
+                        option.value = label.name;
+                        option.innerText = label.name;
+                        select.appendChild(option);
+                    });
+                }
+    
+                const tdDescription = document.createElement('td');
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = 'Enter description';
+                input.className = 'sensor-description-input';
+                tdDescription.appendChild(input);
+    
+                tdLabel.appendChild(select);
+                tr.appendChild(tdId);
+                tr.appendChild(tdLabel);
+                tr.appendChild(tdDescription);
+                table.appendChild(tr);
+            });
+    
+            container.appendChild(table);
+    
+            // Invalid sensors
+            const invalidIDs = originalIDs.filter(id => !validIDs.includes(id));
+            if (invalidIDs.length > 0) {
+                const invalidList = document.createElement('ul');
+                invalidList.style.color = 'red';
+                invalidList.innerHTML = '<strong>Invalid/Not Found Sensors:</strong>';
+                invalidIDs.forEach(id => {
+                    const li = document.createElement('li');
+                    li.innerText = `❌ ${id} (Not found)`;
+                    invalidList.appendChild(li);
+                });
+                container.appendChild(invalidList);
+            }
+    
+            // Toggle submit button
+            const submitBtn = document.getElementById('submit-labels-btn');
+            submitBtn.style.display = validIDs.length > 0 ? 'inline-block' : 'none';
+            document.getElementById('validSensors').style.display = 'block';
+        }
+
+        async function submitLabels() {
+            const rows = document.querySelectorAll('#validated-sensors-container table tr');
+            const results = [];
+
+            for (let i = 1; i < rows.length; i++) {
+                const cells = rows[i].children;
+                const sensorId = cells[0].innerText;
+                const label = cells[1].querySelector('select').value;
+                const description = cells[2].querySelector('input').value;
+                console.log(`Sensor: ${sensorId}, Label: ${label}, Description: ${description}`);
+
+                if (!label) {
+                    alert(`Please select a label for sensor ${sensorId}`);
+                    return;
+                }
+
+                results.push({ sensor_id: sensorId, label, description });
+            }
+
+            try {
+                const res = await fetch('http://127.0.0.1:8000/test/assign_labels_3/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ sensor_labels: results })
+                });
+
+                const data = await res.json();
+                alert("Labels submitted successfully!");
+                console.log(data);
+            } catch (err) {
+                console.error('Error submitting labels:', err)
+            }
+        }
+
+        function navigtetoWaferForm() {
+            window.location.href = 'wafer_form.html';
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            await retrieveLabels(); 
+            const stored = localStorage.getItem('wafer_validated_sensors');
+            if (stored) {
+                const { validated, original } = JSON.parse(stored);
+                renderResults(validated, original);
+                localStorage.removeItem('wafer_validated_sensors');
+            }
+        });
+    
+        // Initial state
+        document.getElementById('loader').style.display = 'none';
+
+        retrieveLabels();
+    </script>
+    
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+﻿parameter,unit,value,description
+insulation_material,,HD7110,Insulation spin & softbake
+insulation_spin_spread,"[rpm, s, rpm/s]","[700, 10, 500]",Insulation Exposure
+insulation_spin_main,"[rpm, s, rpm/s]","[1000, 45, 500]",Insulation development
+insulation_spin_ebr,"[rpm, s, rpm/s]","[3000, 3, 1500]",
+insulation_softbake1_temp,degC,105,
+insulation_softbake1_duration,s,150,
+insulation_softbake2_temp,degC,115,
+insulation_softbake2_duration,s,150,
+insulation_exposure_dosage,mJ/cm^2,500,
+insulation_peb_temp,degC,115,
+insulation_peb_duration,s,120,
+insulation_development_puddle_duration,s,30,
+insulation_development_puddle2_duration,s,30,

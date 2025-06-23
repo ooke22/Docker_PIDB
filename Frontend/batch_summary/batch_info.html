@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch Information</title>
+	<link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+	<link rel="stylesheet" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/style.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+	<style>
+        /* Update for header and navigation panel to allow dropdown visibility */
+        header {
+            background-color: #343a40; /* Dark blue header */
+            color: #fff; /* White text */
+            padding: 1rem;
+            text-align: center;
+            position: relative;
+            z-index: 1; /* Ensure header is not hidden, but dropdowns show above */
+        }
+        
+        .navigation-panel {
+            overflow: visible; /* Ensure that overflow content is visible */
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1; /* Position this layer below the search box suggestions */
+        }
+        
+        /* SearchBox and autocomplete styles */
+        .searchBox {
+            display: flex;
+            align-items: center;
+            position: relative;
+            width: 300px;  /* Adjust the width as needed */
+            margin-left: auto;
+            right: 20px;
+            z-index: 999; /* Ensures it's on top of other elements */
+        }
+        
+        .searchBox input {
+            padding: 5px;
+            font-size: 14px;
+            height: 30px; /* Adjust the height */
+            width: 100%;
+            box-sizing: border-box; /* Ensures the input's width includes padding and borders */
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        /* Dropdown for autocomplete suggestions */
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 35px;  /* Position below the search input field */
+            left: 0;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #fff;
+            z-index: 1000; /* Ensure dropdown shows above other elements */
+            max-height: 200px;  /* Limit the height */
+            overflow-y: auto;   /* Enable vertical scroll if suggestions overflow */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .autocomplete-suggestions div {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            color: black;
+        }
+        
+        .autocomplete-suggestions div:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-suggestions div:hover {
+            background-color: #f0f0f0;
+        }
+
+        .autocomplete-active {
+            background-color: #e9e9e9;
+            color: black;
+        }
+
+        .search {
+            position: relative;
+            top: 0; /* Adjust the top position */
+            left: 550px; /* Position the container to the right */
+            margin-right: 20px;
+            background-color: antiquewhite;
+            width: 25%;
+            padding: 1rem;
+            box-sizing: border-box;
+            z-index: 5; /* Ensures it's on top of other elements. */
+            padding-left: 50px;
+          }
+
+        .search input {
+            height: 25px;
+            padding-right: 50px; /* Add space for the icon */
+            box-sizing: border-box; /* Include padding and border */
+        }
+        
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Sensors</h1>
+        <!-- Navigation Panel-->
+		<div class="navigation-panel">
+			<a href="home_page.html">Home</a>
+			<div class="subnav">
+				<button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="process_encoder.html">Process Encoder</a>
+					<a href="process_views.html">Process List</a>
+				</div>
+			</div>
+			<div class="subnav">
+				<button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="batch_encoder.html">Batch Encoder</a>
+					<a href="batch_summary.html">Batch List</a>
+				</div>
+			</div>
+			<div class="subnav">
+				<button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+				<div class="subnav-content">
+					<a href="image_upload.html">Upload Images</a>
+					<a href="image_view.html">Sensor Images</a>
+				</div>
+			</div>
+
+			<a href="elec_update.html">Update Sensors</a>
+			<div class="searchBox" id="searchBox">
+                <input type="text" id="searcH" placeholder="Search..." autofocus>
+                <div id="autocomplete-results" class="autocomplete-suggestions"></div>
+            </div>
+		</div>
+        <div id="user-dropdown" class="userDropdown">
+            <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+			<span id="user-name" class="user-name">Username</span>
+            <div class="userDropdown-content" id="userDropdown-content">
+                <button id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="search">
+		<input type="text" id="searchInput" placeholder="Type here to search">
+		<span class="search-icon"><i class="fa fa-search"></i></span>
+	</div>
+
+    <div class="batch-info-container">
+        <div id="batchInfoList" class="batch-info"></div>
+    </div>
+
+    <!--script type="module" src="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/batch_info.js"></script>
+	<script type="module" src="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/search.js"></script-->
+    
+
+</body>
+</html>
