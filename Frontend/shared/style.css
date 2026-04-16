@@ -12,12 +12,12 @@
     text-align: center;
   }
 
-  main {
-    display: flex; /* Arrange cards horizontally */
-    flex-wrap: wrap; /* Allow cards to wrap onto multiple lines */
-    justify-content: space-around; /* Distribute cards evenly */
+  /*main {
+    display: flex; /* Arrange cards horizontally 
+    flex-wrap: wrap; /* Allow cards to wrap onto multiple lines 
+    justify-content: space-around; /* Distribute cards evenly 
     padding: 1rem;
-  }
+  } */
 
   .card {
     background-color: #fff; /* White card background */

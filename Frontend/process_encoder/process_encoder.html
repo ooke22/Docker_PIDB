@@ -5,10 +5,115 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Process Encoder</title>
 	<link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
-	<link rel="stylesheet" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/style.css">
+	<link rel="stylesheet" href="../shared/style.css">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <body>
+	<style>
+			/* Update for header and navigation panel to allow dropdown visibility */
+			header {
+				background-color: #343a40; /* Dark blue header */
+				color: #fff; /* White text */
+				padding: 1rem;
+				text-align: center;
+				position: relative;
+				z-index: 1; /* Ensure header is not hidden, but dropdowns show above */
+			}
+
+			.navigation-panel {
+				overflow: visible; /* Ensure that overflow content is visible */
+				display: flex;
+				justify-content: space-between;
+				position: relative;
+				z-index: 1; /* Position this layer below the search box suggestions */
+			}
+		
+		.navigation-panel a {
+			color: white;
+			text-decoration: none;
+			font-size: 16px;
+			/*margin: 0.5rem;*/
+			/*flex-grow: 1;  Allow links to expand and fill the available space */
+			text-align: center; /*Center align text within the links */
+			padding: 14px 16px
+		}
+		
+		.navigation-panel a:hover {
+			background-color: #eee;
+			color: black;
+		}
+
+		.subnav .subnavbtn {
+			font-size: 16px;  
+			border: none;
+			outline: none;
+			color: white;
+			padding: 14px 16px;
+			background-color: inherit;
+			font-family: inherit;
+			margin: 0;
+		}
+		
+		.navbar a:hover, .subnav:hover .subnavbtn {
+			background-color: #c7c4c4;
+		}
+		
+		.subnav-content {
+			display: none;
+			position:absolute;
+			background-color: gray;
+			width: auto;
+			z-index: 9999;
+		}
+		
+		.subnav-content a {
+			display: block;
+			color: white;
+			text-decoration: none;
+			padding: 10px 16px;
+		}
+		
+		.subnav-content a:hover {
+			background-color: #eee;
+			color: black;
+		}
+		
+		.subnav:hover .subnav-content {
+			display: block;
+		}
+		
+
+		.search {
+			position: relative;
+			top: 0; /* Adjust the top position */
+			right: 0; /* Position the container to the right */
+			margin-right: 20px;
+			background-color: antiquewhite;
+			width: 100%;
+			padding: 1rem;
+			box-sizing: border-box;
+			z-index: 999; /* Ensures it's on top of other elements. */
+		}
+
+		.search input {
+			height: 25px;
+			padding-right: 30px; /* Add space for the icon */
+			box-sizing: border-box; /* Include padding and border */
+		}
+
+		.search-icon {
+			position: relative;
+			top: 0; /*Align vertically*/
+			right: 0px; /* Distance from input */
+			transform: translateY(-50%); /* Center vertically */
+		}
+
+		.search-icon i {
+			color: #333;
+			cursor: pointer; /*Change cursor to pointer on hover */
+		}
+
+	</style>
 	<header>
 		<h1>Process Encoder</h1>
 		<!-- Navigation Panel-->
@@ -37,6 +142,12 @@
 			</div>
 			<a href="elec_update.html">Update Electrodes</a>
 		</div>
+
+		<div class="searchBox" id="searchBox">
+            <input type="text" id="searcH" placeholder="Search..." autofocus>
+            <div id="autocomplete-results" class="autocomplete-suggestions"></div>
+        </div>
+
 		<div id="user-dropdown" class="userDropdown">
             <span class="user-icon"><i class="fa fa-user-circle"></i></span>
 			<span id="user-name" class="user-name">Username</span>

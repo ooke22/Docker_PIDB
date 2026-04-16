@@ -13,7 +13,7 @@ class ProcessFile(models.Model):
     parsed_data = models.JSONField(blank=True, null=True)  # Store parsed CSV data as a list of dictionaries
 
     def __str__(self):
-        return f'{str(self.process_id)} - {str(self.csv)}'
+        return f'{str(self.process_id)} - {str(self.source)}'
     
 class ProcessFiles(models.Model):
     id = models.AutoField(primary_key=True)

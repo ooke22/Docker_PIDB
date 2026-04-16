@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Experiment - Proton Intelligence</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .form-container {
+            padding: 2rem;
+        }
+
+        .section {
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 1.5rem;
+            background: #667eea;
+            border-radius: 2px;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .required {
+            color: #ef4444;
+        }
+
+        input[type="text"],
+        input[type="datetime-local"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-upload-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            border: 2px dashed #d1d5db;
+            border-radius: 6px;
+            background: #f9fafb;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-upload-label:hover {
+            border-color: #667eea;
+            background: #f3f4ff;
+        }
+
+        .file-upload-label.has-file {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .sensor-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .sensor-item {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.3s;
+        }
+
+        .sensor-item.validating {
+            border-color: #fbbf24;
+            background: #fffbeb;
+        }
+
+        .sensor-item.valid {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .sensor-item.invalid {
+            border-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .sensor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .sensor-number {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .remove-sensor {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .remove-sensor:hover {
+            background: #fee2e2;
+        }
+
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .validation-status {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .validation-status.checking {
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        .validation-status.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .validation-status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .sensor-info {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+
+        .add-sensor-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: white;
+            border: 2px dashed #d1d5db;
+            border-radius: 6px;
+            color: #667eea;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .add-sensor-btn:hover {
+            border-color: #667eea;
+            background: #f3f4ff;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: start;
+            gap: 0.75rem;
+        }
+
+        .alert-success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .alert-icon {
+            font-size: 1.25rem;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .help-text {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .sensor-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Create Experiment</h1>
+            <p>Configure electrode assignments and upload experimental data</p>
+        </div>
+
+        <div class="form-container">
+            <div id="alertContainer"></div>
+
+            <form id="experimentForm">
+                <!-- Basic Information -->
+                <div class="section">
+                    <h2 class="section-title">Basic Information</h2>
+                    
+                    <div class="form-group">
+                        <label for="experimentId">
+                            Experiment ID <span class="required">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="experimentId" 
+                            name="experiment_id"
+                            placeholder="e.g., EXP-2025-001"
+                            required
+                        >
+                        <div class="help-text">Unique identifier for this experiment</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="title">
+                            Title <span class="required">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="title" 
+                            name="title"
+                            placeholder="e.g., Long Term Drift Analysis - Batch M021"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea 
+                            id="description" 
+                            name="description"
+                            placeholder="Detailed description of the experiment..."
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="experimentType">Experiment Type</label>
+                        <select id="experimentType" name="experiment_type">
+                            <option value="">Select type...</option>
+                            <option value="Long Term Drift">Long Term Drift</option>
+                            <option value="Short Term Drift">Short Term Drift</option>
+                            <option value="Thickness Measurement">Thickness Measurement</option>
+                            <option value="Calibration">Calibration</option>
+                            <option value="Stability Test">Stability Test</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="testDate">Test Date</label>
+                        <input type="datetime-local" id="testDate" name="test_date">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select id="status" name="status">
+                            <option value="PLANNED">Planned</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="COMPLETED">Completed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Sensor Configuration -->
+                <div class="section">
+                    <h2 class="section-title">Sensor Configuration</h2>
+                    <div id="sensorList" class="sensor-list"></div>
+                    <button type="button" class="add-sensor-btn" id="addSensorBtn">
+                        <span>+</span> Add Sensor
+                    </button>
+                </div>
+
+                <!-- Experimental Data -->
+                <div class="section">
+                    <h2 class="section-title">Experimental Data (Optional)</h2>
+                    
+                    <div class="form-group">
+                        <label for="csvFile">Upload CSV File</label>
+                        <div class="file-upload">
+                            <input 
+                                type="file" 
+                                id="csvFile" 
+                                accept=".csv,.txt"
+                            >
+                            <div class="file-upload-label" id="fileLabel">
+                                <span>📄</span>
+                                <span id="fileName">Choose CSV file or drag and drop</span>
+                            </div>
+                        </div>
+                        <div class="help-text">CSV file containing experimental steps and parameters</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">Additional Notes</label>
+                        <textarea 
+                            id="notes" 
+                            name="notes"
+                            placeholder="Any additional observations or notes..."
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="button-group">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <span id="submitText">Create Experiment</span>
+                        <div id="submitSpinner" class="spinner" style="display: none;"></div>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        // Configuration
+        const API_BASE = '/api/experiments';
+        const DEBOUNCE_DELAY = 500;
+
+        // State
+        let sensors = [];
+        let sensorIdCounter = 0;
+        let csvData = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeForm();
+            addSensor(); // Add first sensor by default
+        });
+
+        function initializeForm() {
+            document.getElementById('addSensorBtn').addEventListener('click', addSensor);
+            document.getElementById('experimentForm').addEventListener('submit', handleSubmit);
+            document.getElementById('cancelBtn').addEventListener('click', handleCancel);
+            document.getElementById('csvFile').addEventListener('change', handleFileUpload);
+            
+            // Drag and drop for CSV
+            const fileLabel = document.getElementById('fileLabel');
+            fileLabel.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                fileLabel.style.borderColor = '#667eea';
+            });
+            fileLabel.addEventListener('dragleave', () => {
+                fileLabel.style.borderColor = '#d1d5db';
+            });
+            fileLabel.addEventListener('drop', handleFileDrop);
+        }
+
+        function addSensor() {
+            const id = sensorIdCounter++;
+            const sensor = {
+                id,
+                unique_id: '',
+                electrode: 'BOTH',
+                role: 'WE',
+                notes: '',
+                validation: null
+            };
+            sensors.push(sensor);
+            renderSensors();
+        }
+
+        function removeSensor(id) {
+            sensors = sensors.filter(s => s.id !== id);
+            renderSensors();
+        }
+
+        function renderSensors() {
+            const container = document.getElementById('sensorList');
+            container.innerHTML = sensors.map((sensor, index) => `
+                <div class="sensor-item ${getSensorClass(sensor)}" data-id="${sensor.id}">
+                    <div class="sensor-header">
+                        <span class="sensor-number">Sensor ${index + 1}</span>
+                        ${sensors.length > 1 ? `
+                            <button type="button" class="remove-sensor" onclick="window.removeSensor(${sensor.id})">
+                                Remove
+                            </button>
+                        ` : ''}
+                    </div>
+                    <div class="sensor-grid">
+                        <div>
+                            <label>Sensor ID *</label>
+                            <input 
+                                type="text" 
+                                placeholder="e.g., M021-01-045"
+                                value="${sensor.unique_id}"
+                                onchange="window.updateSensor(${sensor.id}, 'unique_id', this.value)"
+                                oninput="window.debouncedValidate(${sensor.id}, this.value)"
+                                required
+                            >
+                            ${renderValidationStatus(sensor)}
+                        </div>
+                        <div>
+                            <label>Electrode *</label>
+                            <select 
+                                onchange="window.updateSensor(${sensor.id}, 'electrode', this.value)"
+                            >
+                                <option value="BOTH" ${sensor.electrode === 'BOTH' ? 'selected' : ''}>Both</option>
+                                <option value="E1" ${sensor.electrode === 'E1' ? 'selected' : ''}>E1</option>
+                                <option value="E2" ${sensor.electrode === 'E2' ? 'selected' : ''}>E2</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Role *</label>
+                            <select 
+                                onchange="window.updateSensor(${sensor.id}, 'role', this.value)"
+                            >
+                                <option value="WE" ${sensor.role === 'WE' ? 'selected' : ''}>WE</option>
+                                <option value="RE" ${sensor.role === 'RE' ? 'selected' : ''}>RE</option>
+                                <option value="CE" ${sensor.role === 'CE' ? 'selected' : ''}>CE</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top: 0.75rem;">
+                        <label style="font-size: 0.875rem;">Notes</label>
+                        <input 
+                            type="text" 
+                            placeholder="Optional notes..."
+                            value="${sensor.notes}"
+                            onchange="window.updateSensor(${sensor.id}, 'notes', this.value)"
+                            style="font-size: 0.875rem; padding: 0.5rem;"
+                        >
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getSensorClass(sensor) {
+            if (!sensor.validation) return '';
+            if (sensor.validation.status === 'validating') return 'validating';
+            if (sensor.validation.status === 'valid') return 'valid';
+            if (sensor.validation.status === 'invalid') return 'invalid';
+            return '';
+        }
+
+        function renderValidationStatus(sensor) {
+            if (!sensor.validation) return '';
+            
+            const { status, message, info } = sensor.validation;
+            
+            if (status === 'validating') {
+                return `
+                    <div class="validation-status checking">
+                        <span>⏳</span>
+                        <span>Validating...</span>
+                    </div>
+                `;
+            }
+            
+            if (status === 'valid') {
+                return `
+                    <div class="validation-status success">
+                        <span>✓</span>
+                        <span>${message}</span>
+                    </div>
+                    ${info ? `<div class="sensor-info">Batch: ${info.batch_location}, Processes: ${info.process_count}</div>` : ''}
+                `;
+            }
+            
+            if (status === 'invalid') {
+                return `
+                    <div class="validation-status error">
+                        <span>✗</span>
+                        <span>${message}</span>
+                    </div>
+                `;
+            }
+            
+            return '';
+        }
+
+        window.updateSensor = (id, field, value) => {
+            const sensor = sensors.find(s => s.id === id);
+            if (sensor) {
+                sensor[field] = value;
+            }
+        };
+
+        // Debounced validation
+        const debounceTimers = {};
+        window.debouncedValidate = (id, value) => {
+            clearTimeout(debounceTimers[id]);
+            debounceTimers[id] = setTimeout(() => {
+                validateSensor(id, value);
+            }, DEBOUNCE_DELAY);
+        };
+
+        async function validateSensor(id, sensorId) {
+            const sensor = sensors.find(s => s.id === id);
+            if (!sensor || !sensorId || sensorId.length < 5) {
+                sensor.validation = null;
+                renderSensors();
+                return;
+            }
+
+            sensor.validation = { status: 'validating', message: 'Checking...' };
+            renderSensors();
+
+            try {
+                const response = await fetch(`${API_BASE}/utils/validate-sensors/?sensor_ids=${sensorId}`);
+                const data = await response.json();
+
+                if (data.valid && data.sensors.length > 0) {
+                    const sensorInfo = data.sensors[0];
+                    sensor.validation = {
+                        status: 'valid',
+                        message: 'Sensor found',
+                        info: sensorInfo
+                    };
+                } else {
+                    sensor.validation = {
+                        status: 'invalid',
+                        message: 'Sensor not found in database'
+                    };
+                }
+            } catch (error) {
+                sensor.validation = {
+                    status: 'invalid',
+                    message: 'Validation failed'
+                };
+            }
+
+            renderSensors();
+        }
+
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processCSVFile(file);
+            }
+        }
+
+        function handleFileDrop(e) {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (file && (file.name.endsWith('.csv') || file.name.endsWith('.txt'))) {
+                document.getElementById('csvFile').files = e.dataTransfer.files;
+                processCSVFile(file);
+            }
+            e.target.style.borderColor = '#d1d5db';
+        }
+
+        function processCSVFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                csvData = parseCSV(e.target.result);
+                const fileLabel = document.getElementById('fileLabel');
+                const fileName = document.getElementById('fileName');
+                fileLabel.classList.add('has-file');
+                fileName.textContent = `✓ ${file.name} (${csvData.rows.length} rows)`;
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSV(text) {
+            const lines = text.split('\n').filter(line => line.trim());
+            const headers = lines[0].split(',').map(h => h.trim());
+            const rows = lines.slice(1).map(line => {
+                const values = line.split(',').map(v => v.trim());
+                return headers.reduce((obj, header, index) => {
+                    obj[header] = values[index];
+                    return obj;
+                }, {});
+            });
+            return { headers, rows };
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+
+            // Validate sensors
+            const invalidSensors = sensors.filter(s => !s.validation || s.validation.status !== 'valid');
+            if (invalidSensors.length > 0) {
+                showAlert('error', 'Please ensure all sensors are validated before submitting.');
+                return;
+            }
+
+            // Check for required fields
+            const formData = new FormData(e.target);
+            if (!formData.get('experiment_id') || !formData.get('title')) {
+                showAlert('error', 'Please fill in all required fields.');
+                return;
+            }
+
+            // Disable submit button
+            const submitBtn = document.getElementById('submitBtn');
+            const submitText = document.getElementById('submitText');
+            const submitSpinner = document.getElementById('submitSpinner');
+            submitBtn.disabled = true;
+            submitText.style.display = 'none';
+            submitSpinner.style.display = 'block';
+
+            try {
+                const payload = {
+                    experiment_id: formData.get('experiment_id'),
+                    title: formData.get('title'),
+                    description: formData.get('description') || '',
+                    experiment_type: formData.get('experiment_type') || null,
+                    test_date: formData.get('test_date') || null,
+                    status: formData.get('status'),
+                    notes: formData.get('notes') || '',
+                    sensors: sensors.map(s => ({
+                        unique_id: s.unique_id,
+                        electrode: s.electrode,
+                        role: s.role,
+                        notes: s.notes
+                    })),
+                    user_data: csvData || {}
+                };
+
+                const response = await fetch(`${API_BASE}/create/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('success', `Experiment ${data.experiment.experiment_id} created successfully!`);
+                    setTimeout(() => {
+                        window.location.href = `/experiments/${data.experiment.experiment_id}/`;
+                    }, 2000);
+                } else {
+                    showAlert('error', data.error || 'Failed to create experiment');
+                    submitBtn.disabled = false;
+                    submitText.style.display = 'block';
+                    submitSpinner.style.display = 'none';
+                }
+            } catch (error) {
+                showAlert('error', 'Network error: ' + error.message);
+                submitBtn.disabled = false;
+                submitText.style.display = 'block';
+                submitSpinner.style.display = 'none';
+            }
+        }
+
+        function handleCancel() {
+            if (confirm('Are you sure you want to cancel? All data will be lost.')) {
+                window.location.href = '/experiments/';
+            }
+        }
+
+        function showAlert(type, message) {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `
+                <span class="alert-icon">${type === 'success' ? '✓' : '✗'}</span>
+                <span>${message}</span>
+            `;
+            container.innerHTML = '';
+            container.appendChild(alert);
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Expose functions to window for inline event handlers
+        window.removeSensor = removeSensor;
+    </script>
+</body>
+</html>

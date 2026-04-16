@@ -33,7 +33,7 @@ class BatchSerializer(serializers.ModelSerializer):
             'wafer_description',
             'wafer_design_id',
             #'wafer_process_id',
-            'wafer_build_time',
+            #'wafer_build_time',
             'sensor_processes',  # Updated to show each process_id and timestamp
             'sensor_id',
             'total_sensors',
@@ -74,8 +74,8 @@ class SearchFuncSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sensor
         fields = ['unique_identifier','batch_location','batch_id','batch_label','batch_description',
-                  'wafer_id','wafer_label','wafer_description','wafer_design_id','wafer_build_time','sensor_id','sensor_label',
-                  'sensor_description', 'images', 'sensor_processes'] # Include related images
+                  'wafer_id','wafer_label','wafer_description','wafer_design_id','sensor_id','sensor_label',
+                  'sensor_description', 'label', 'images', 'sensor_processes'] # Include related images
     
     def get_unique_identifier(self, obj):
         return obj.get_unique_identifier()

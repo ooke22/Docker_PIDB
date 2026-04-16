@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sensor Image Upload</title>
 	<link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
-	<link rel="stylesheet" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/style.css">
+	<link rel="stylesheet" href="../shared/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <style>
         /* Update for header and navigation panel to allow dropdown visibility */
@@ -231,17 +231,21 @@
         </div>
 </header>
 
+<div class="file-format-note">
+    <i class="fa fa-info-circle" aria-hidden="true"></i>
+    Update multiple sensors within a batch using wafer and sensor ID ranges.
+</div>
+
 <div class="image-upload">
     <label for="processID">Process ID:</label>
-    <input type="text" id="processInput" placeholder="Enter or select a process" oninput="filterProcesses()">
-    <span class="info-icon" title="List of Processes" onclick="showProcessInfo()"></span>
+    <input type="text" id="processInput" placeholder="Enter or select a process">
+    <span class="info-icon" title="List of Processes" id="processInfoIcon"></span>
     <div id="processDropdown" class="processListDropdown"></div>
     <br><br>
 
-    <div id="dropArea" class="drop-area" ondrop="handleDrop(event)" ondragover="handleDragOver(event)">
-        <p>Drag and drop your image files here, or <label for="imageFile" onclick="selectImageFiles()">select image files</label>.</p>
-        <input type="file" id="imageFile" accept="image/*" multiple onchange="handleFiles(this.files)">
-        <!-- Display uploaded info here -->
+    <div id="dropArea" class="drop-area">
+        <p>Drag and drop your image files here, or <label for="imageFile" id="fileLabel">select image files</label>.</p>
+        <input type="file" id="imageFile" accept="image/*" multiple>
         <div class="uploaded-info">
             <div class="info-box" id="thumbnailBox"></div>
             <div class="info-box" id="electrodeBox"></div>
@@ -250,339 +254,13 @@
     </div>
 </div>
 
-<button onclick="uploadImage()">Upload Image</button>
+<button id="uploadBtn">Upload Image</button>
 
-<script>
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-
-    const csrftoken = getCookie('csrftoken');
-
-    async function fetchUserInfo() {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('https://sensors-test.protonintelligence.io/users/user_info/', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Token ${token}`,
-                    'X-CSRFToken': csrftoken,
-                }
-            });
-            if(!response.ok) {
-                // Redirect user to the login page
-                window.location.href = "login_register.html";
-                alert("Please login to your account");
-                return;
-            }
-            const user = await response.json();
-            document.getElementById('user-name').innerText = user.email;
-        } catch (error) {
-            console.error('Error fetching user information: ', error);
-            alert('Error fetching information. Please try again.');
-        }
-    }
-
-    var processList; // global variable
-
-    function filterProcesses() {
-        const input = document.getElementById('processInput').value.toLowerCase();
-        const dropdown = document.getElementById('processDropdown');
-
-        dropdown.innerHTML = '';
-
-        processList.forEach(process => {
-            if (process.process_id.toLowerCase().includes(input)) {
-                const option = document.createElement('div');
-                option.classList.add('dropdown-item');
-                option.textContent = `${process.process_id} - ${process.description}`;
-                option.onclick = () => selectProcess(process.process_id);
-                dropdown.appendChild(option);
-            }
-        });
-    }
-
-    // Function to populate Wafer Process ID dropdown
-    function selectProcess(processId) {
-        document.getElementById('processInput').value = processId;
-        document.getElementById('processDropdown').innerHTML = '';
-        document.getElementById('processDropdown').style.display = 'none';
-    }
-
-    // Show the dropdown when the input is clicked
-    document.getElementById('processInput').addEventListener('focus', () => {
-        const dropdown = document.getElementById('processDropdown');
-        dropdown.style.display = 'block'; // Make the dropdown visible
-        filterProcesses(); // Re-filter and display the dropdown contents
-    });
-
-    // Hide the dropdown when clicked outside of the input field or dropdown
-    document.addEventListener('click', function(event) {
-        const dropdown = document.getElementById('processDropdown');
-        const input = document.getElementById('processInput');
-        if (!dropdown.contains(event.target) && event.target !== input) {
-            dropdown.style.display = 'none'; // Hide the dropdown
-        }
-    });
-
-    // Function to be called on page load
-    async function onPageLoad() {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch("https://sensors-test.protonintelligence.io/process/get_processes/", {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Token ${token}`,
-                    'X-CSRFToken': csrftoken,
-                }
-            });
-            if (!response.ok) {
-                console.errorText = await response.text();
-                console.error('HTTp error', response.status, errorText);
-                throw new Error('Unable to fetch processes.');
-            }
-            processList = await response.json();
-            console.log('Processes: ', processList);
-            // Populate processes dropdown
-            filterProcesses();
-        } catch (error) {
-            console.error('Error fetching processes:', error);
-        }
-    }
-
-    function showProcessInfo() {
-        const processInfoUrl = "process_views.html";
-        window.open(processInfoUrl, "_blank");
-    }
-
-
-
-    let electrodesData = []; // store fetched electrode data
-    let processImageData = []; // Defined globally so other functions can use its content.
-
-    async function fetchElectrodes() {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch("https://sensors-test.protonintelligence.io/sensors/electrode-dropdown/", {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Token ${token}`,
-                    'X-CSRFToken': csrftoken,
-                }
-            });
-            electrodesData = await response.json();
-            populateDropdown();
-        } catch (error) {
-            console.error('Error fetching electrodes: ', error);
-        }
-    }
-
-    function handleDragOver(event) {
-        event.preventDefault(); // By default, browsers may open dropped files in the window, this line prevents the default behavior
-    }
-
-    function handleDrop(event) {
-        event.preventDefault();
-    
-        const dt = event.dataTransfer;
-        const files = dt.files;
-    
-        const processInputValue = document.getElementById('processInput').value;
-    
-        if (!processInputValue) {
-            alert('Please select a Process ID before uploading files.');
-            return;
-        }
-    
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            const fileName = file.name;
-            const fileExtension = fileName.split('.').pop().toLowerCase();
-    
-            if (fileExtension === 'jpg' || fileExtension === 'jpeg' || fileExtension === 'png') {
-                const electrodeIdentifier = getMatchingElectrode(fileName);
-    
-                // Store file, process ID, and electrode identifier in processImageData
-                const fileData = {
-                    file: file,
-                    process_id: processInputValue,
-                    electrodeIdentifier: electrodeIdentifier
-                };
-                processImageData.push(fileData);
-    
-                // Add thumbnail and identifier info to the UI
-                displayThumbnail(file, fileName, processInputValue, electrodeIdentifier);
-            }
-        }
-    }
-
-    function handleFiles(files) {
-        const processInputValue = document.getElementById('processInput').value;
-    
-        if (!processInputValue) {
-            alert('Please select a Process ID before uploading files.');
-            return;
-        }
-    
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            const fileName = file.name;
-            const fileExtension = fileName.split('.').pop().toLowerCase();
-    
-            if (fileExtension === 'jpg' || fileExtension === 'jpeg' || fileExtension === 'png') {
-                const electrodeIdentifier = getMatchingElectrode(fileName);
-    
-                // Store file, process ID, and electrode identifier in processImageData
-                const fileData = {
-                    file: file,
-                    process_id: processInputValue,
-                    electrodeIdentifier: electrodeIdentifier
-                };
-                processImageData.push(fileData);
-    
-                // Add thumbnail and identifier info to the UI
-                displayThumbnail(file, fileName, processInputValue, electrodeIdentifier);
-            }
-        }
-    }
-
-
-    function displayThumbnail(file, fileName, processID, electrodeIdentifier) {
-        const thumbnailBox = document.getElementById('thumbnailBox');
-        const electrodeBox = document.getElementById('electrodeBox');
-        const processIDBox = document.getElementById('processIDBox'); // Access the process ID container
-    
-        // Create a new item for the thumbnail box
-        const thumbnailBoxItem = document.createElement('div');
-        thumbnailBoxItem.classList.add('thumbnailBoxItem');
-    
-        const fileNameInfo = document.createElement('p');
-        fileNameInfo.textContent = `File: ${fileName}`;
-    
-        const deleteButton = document.createElement('button');
-        deleteButton.innerHTML = '&#x2716;';
-        deleteButton.classList.add('delete-button');
-        deleteButton.addEventListener('click', () => {
-            const index = Array.from(thumbnailBox.children).indexOf(thumbnailBoxItem);
-            if (index !== -1) {
-                processImageData.splice(index, 1);
-                thumbnailBox.removeChild(thumbnailBoxItem);
-    
-                // Remove electrode info
-                const electrodeBoxItems = document.querySelectorAll(`#electrodeBox div`);
-                if (electrodeBoxItems[index]) electrodeBox.removeChild(electrodeBoxItems[index]);
-    
-                // Clear the process ID box if there are no files left
-                if (!processImageData.length) processIDBox.textContent = '';
-            }
-        });
-    
-        thumbnailBoxItem.appendChild(fileNameInfo);
-        thumbnailBoxItem.appendChild(deleteButton);
-        thumbnailBox.appendChild(thumbnailBoxItem);
-    
-        // Display electrode identifier
-        const electrodeBoxItem = document.createElement('div');
-        const electrodeIdentifierInfo = document.createElement('p');
-        electrodeIdentifierInfo.textContent = `Identifier: ${electrodeIdentifier}`;
-        electrodeBoxItem.appendChild(electrodeIdentifierInfo);
-        electrodeBox.appendChild(electrodeBoxItem);
-
-        processIDInfo = document.createElement('p');
-        processIDInfo.textContent = `Process ID: ${processID}`;
-        processIDBox.appendChild(processIDInfo);
-    }
-    
-   
-    function getMatchingElectrode(fileName) {
-        // Parse the fileName to extract the relevant identifier
-        const identifier = fileName.split('.')[0];
-
-        // Filter electrodesData to find matching electrode
-        const matchingElectrode = electrodesData.find(electrode => electrode.unique_identifier === identifier);
-        console.log("Match Electrode: ", matchingElectrode)
-
-        return matchingElectrode ? matchingElectrode.unique_identifier : 'N/A';
-    }
-    
-
-    async function uploadImage() {
-        const data = new FormData();
-
-        processImageData.forEach(fileData => {
-            data.append('process_id', fileData.process_id);
-            data.append('electrode_identifier', fileData.electrodeIdentifier);
-            data.append('image_files', fileData.file);
-        });
-        console.log(processImageData);
-        console.log('Data to be sent', Array.from(data.entries()));
-
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('http://127.0.0.1:8000/test/image-upload/', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Token ${token}`,
-                    'X-CSRFToken': csrftoken,
-                },
-                body: data,
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('HTTP error details: ', response.status, errorText);
-                throw new Error('Failed to upload image');
-            }
-            alert('Image uploaded successfully!');
-            // Reload the page after successful upload.
-            window.location.reload();
-        } catch (error) {
-            console.error('Error uploading image', error);
-            alert('Error uploading image. Please try again.');
-        }
-    }
-
-    function populateDropdown() {
-        const electrodeBox = document.getElementById('electrodeBox');
-        const dropdown = document.createElement('select');
-        dropdown.classList.add('dropdown');
-
-        electrodesData.forEach(electrode => {
-            const option = document.createElement('option');
-            option.value = electrode.unique_identifier;
-            option.textContent = electrode.unique_identifier;
-            dropdown.appendChild(option);
-        });
-
-        electrodeBox.appendChild(dropdown);
-    }
-
-    function selectImageFiles() {
-        // Trigger file selection when "select image files" label is clicked
-        document.getElementById('imageFile').click();
-    }
-
-
-    window.onload = function () {
-        //fetchUserInfo();
-        onPageLoad();
-        startLogoutTimer();
-        fetchElectrodes();
-    }
-
-    document.getElementById('logoutBtn').addEventListener('click', logout);
-
-</script>
+<!-- Load scripts in dependency order -->
+<script type="module" src="../image_upload/domUtils.js"></script>
+<script type="module" src="../image_upload/data-fetching.js"></script>
+<script type="module" src="../image_upload/fileHandler2.js"></script>
+<script type="module" src="../image_upload/uploader.js"></script>
+<script type="module" src="../image_upload/index.js"></script>
 </body>
 </html>

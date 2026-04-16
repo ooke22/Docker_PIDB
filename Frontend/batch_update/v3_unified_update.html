@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sensor Update 2 — Unified</title>
+  <link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+  <link rel="stylesheet" href="\shared\style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+  <style>
+    /* (Your existing styles preserved) */
+    #processIdContainer { width: 500px; border: 1px solid #000; padding: 10px; margin-left: 20px; font-size: 16px; height: 100px; overflow-y: auto; margin-top: 10px; }
+    .process-item { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; cursor:pointer; }
+    .process-item:hover { background-color:#add8e6; }
+
+    #selectedProcessBox { width: 500px; border: 1px solid #000; padding: 10px; margin-left: 50px; font-size: 16px; height: 100px; overflow-y: auto; margin-top: 10px; }
+    #addedProcessBox { width: 600px; border: 1px solid #000; padding: 10px; margin-left: 20px; font-size: 16px; height: 100px; overflow-y: auto; }
+    .remove-button { font-size: 12px; padding: 2px 5px; margin-left: 10px; }
+    .timestamp-container { margin-top: 5px; }
+    .selected-process { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+    .highlighted { background-color: #add8e6; }
+    #overlay > div { display:inline-block; text-align:center; margin-top:20%; }
+
+    table { border-collapse:collapse; margin-top:1rem; width:100%; }
+    td, th { border:2px solid #ccc; padding:6px; text-align:center; }
+
+    .sensor-input-container { display:flex; align-items:center; gap:2.75rem; margin-bottom:1rem; flex-wrap:nowrap; }
+    .sensor-input-container label { white-space:nowrap; font-weight:bold; }
+    .sensor-input-container input { width:700px; padding:0.5rem; font-size:1rem; }
+    .sensor-input-container button { padding:0.5rem 1rem; background-color:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; }
+    .sensor-input-container button:hover { background-color:#45a049; }
+
+    .waferForm button, .reset button { width:150px; padding:0.5rem 1rem; border-radius:4px; color:white; border:none; cursor:pointer; }
+    .waferForm button { background-color:#4CAF50; }
+    .reset button { background-color:#ec5660; }
+    .waferForm { display:flex; align-items:center; gap:2.05rem; margin-bottom:1rem; flex-wrap:nowrap; }
+    .waferForm label { white-space:nowrap; font-weight:bold; }
+
+    /* small styles for validated list */
+    #validated-sensors-container ul { list-style:none; padding-left:0; }
+    #validated-sensors-container li { margin-bottom:6px; display:flex; align-items:center; gap:8px; }
+    #validated-sensors-container .remove-uid { background:transparent; border:none; color:#c00; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Update Sensors 2</h1>
+    <div class="navigation-panel">
+      <a href="home_page.html">Home</a>
+      <!-- (nav content omitted for brevity — keep your existing nav) -->
+    </div>
+  </header>
+
+  <div id="loader" class="loader"></div>
+
+  <div id="overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; text-align:center; font-size:20px; line-height:100vh; color:white;">
+    <div>
+      Performing update. Please wait...
+      <div id="loader" class="loader"></div>
+    </div>
+  </div>
+
+  <main style="padding:1rem;">
+    <!-- --- Individual sensor input (validate) --- -->
+    <div class="sensor-input-wrapper">
+      <form id="sensorForm">
+        <h3 style="background-color:#C9CDE4;">Add Sensors (Individual)</h3>
+        <div class="sensor-input-container">
+          <label for="u_id">By Sensor IDs:</label>
+          <input type="text" id="u_id" placeholder="e.g., M001-01-001, M001-02-024 or newline-separated" required>
+          <button type="submit" id="validate">Validate</button>
+        </div>
+      </form>
+
+      <div class="sensor-actions-vertical">
+        <div class="waferForm" id="waferForm">
+          <label>With Wafer Form</label>
+          <button type="button" id="navtoWF">Wafer Form</button>
+        </div>
+        <div class="reset" id="reset">
+          <button type="button" id="resetBtn">Clear Sensors</button>
+        </div>
+      </div>
+
+      <!-- With Batches Section -->
+      <div class="sensor-actions-vertical">
+        <div class="waferForm">
+          <label>With Batches</label>
+          <button type="button" id="showBatchFormBtn">Batch Form</button>
+        </div>
+      </div>
+
+      <!-- Hidden batch update form -->
+      <div id="batchFormContainer" style="display:none; margin-top:1rem;">
+        <h3 style="background-color:#C9CDE4;">Batch Update</h3>
+        <form id="batchForm">
+          <div class="input-group">
+            <label for="batch_location">Batch Location:</label>
+            <input type="text" id="batch_location" required>
+            <label for="batch_id">Batch ID:</label>
+            <input type="text" id="batch_id" required>
+          </div>
+          <br>
+          <button type="submit" id="retrieveBatchBtn">Retrieve Data</button>
+        </form>
+
+        <div id="batchDetails" style="display:none; margin-top:1rem;">
+          <h3 style="background-color:#C9CDE4;">Sensors to Update (Batch)</h3>
+          <div id="batchResults"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Validated sensors (individual) -->
+    <div class="validSensors" id="validSensors" style="display:none; margin-top:1rem;">
+      <h3 style="background-color:#C9CDE4;">Validated Sensors (Individual)</h3>
+      <div id="validated-sensors-container" style="margin-top:0rem;"></div>
+    </div>
+
+    <!-- Update fields area -->
+    <div class="updateFields" id="updateFields" style="display:none; margin-top:1rem;">
+      <form id="updateForm">
+        <h3 style="background-color:#C9CDE4;">Select Fields to Update</h3>
+        <table id="updateTable">
+          <tr><th>Field</th><th>Select</th><th>Value</th></tr>
+        </table>
+
+        <h3 style="background-color:#C9CDE4">Process Details</h3>
+        <table id="processTable" style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr><th>Process ID</th><th>Description</th><th>Timestamp</th><th>Remove</th></tr>
+          </thead>
+          <tbody id="processTableBody"></tbody>
+        </table>
+
+        <div style="display:flex; gap:1rem; margin-top:1rem;">
+          <div id="processIdContainer"><h4>Process IDs</h4><div id="processList"></div></div>
+          <div id="selectedProcessBox"><h4>Timestamp</h4><div id="selectedProcessContainer"></div></div>
+        </div>
+
+        <div id="timestampContainerWrapper"></div>
+
+        <h3 style="background-color:#C9CDE4">Processes to be Added</h3>
+        <table id="addedProcessTable" style="width:100%; border-collapse:collapse;">
+          <thead><tr><th>Process ID</th><th>Description</th><th>Timestamp</th><th>Remove</th></tr></thead>
+          <tbody id="addedProcessTableBody"></tbody>
+        </table>
+
+        <br/>
+        <button type="button" id="updateButton">Update</button>
+      </form>
+    </div>
+  </main>
+
+  <!-- Your shared utilities (unchanged) -->
+  <script type="module" src="../shared/utils.js"></script>
+  <script type="module" src="./v4_unified_update.js"></script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: local_mongo
+    restart: always
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_data:/data/db  # Let Docker manage this volume
+      - ./dump_localtest:/backup
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (Message Broker for Celery)
+  redis:
+    image: redis:7-alpine
+    container_name: celery_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+
+  # Django Web Application
+  django:
+    build: 
+      context: ../Test_Database_4
+      dockerfile: Dockerfile
+    container_name: django_app
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../Test_Database_4:/app
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/LocalTest
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: uvicorn Test_Database_4.asgi:application --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - app-network
+
+  # Celery Worker
+  celery:
+    build: 
+      context: ../Test_Database_4
+      dockerfile: Dockerfile
+    container_name: celery_worker
+    restart: always
+    volumes:
+      - ../Test_Database_4:/app
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/LocalTest
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: celery -A Test_Database_4 worker --loglevel=info
+    networks:
+      - app-network
+
+  # Celery Beat
+  celery-beat:
+    build: 
+      context: ../Test_Database_4
+      dockerfile: Dockerfile
+    container_name: celery_beat
+    restart: always
+    volumes:
+      - ../Test_Database_4:/app
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/LocalTest
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: celery -A Test_Database_4 beat --loglevel=info
+    networks:
+      - app-network
+
+volumes:
+  mongodb_data:  # Removed external: true - let Docker manage it
+  redis_data:
+
+networks:
+  app-network:
+    driver: bridge

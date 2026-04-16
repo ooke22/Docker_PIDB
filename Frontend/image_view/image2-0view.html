@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sensor Images</title>
+    <link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png"/>
+    <link rel="stylesheet" href="../shared/style.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+      header {
+        background-color: #343a40;
+        color: #fff;
+        padding: 1rem;
+        text-align: center;
+        position: relative;
+        z-index: 1;
+      }
+
+      .navigation-panel {
+        overflow: visible;
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        z-index: 1;
+      }
+
+      .searchBox {
+        display: flex;
+        align-items: center;
+        position: relative;
+        width: 300px;
+        margin-left: auto;
+        right: 20px;
+        z-index: 999;
+      }
+
+      .searchBox input {
+        padding: 5px;
+        font-size: 14px;
+        height: 30px;
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+
+      .autocomplete-suggestions {
+        position: absolute;
+        top: 35px;
+        left: 0;
+        width: 100%;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #fff;
+        z-index: 1000;
+        max-height: 200px;
+        overflow-y: auto;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .autocomplete-suggestions div {
+        padding: 10px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+        color: black;
+      }
+
+      .autocomplete-suggestions div:hover {
+        background-color: #f0f0f0;
+      }
+
+      .card-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        /*gap: 1rem; */
+        padding: 1rem;
+      }
+
+      .batch_card {
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        padding: 1rem;
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        margin: 2px;
+        width: 280px;
+      }
+
+      .process-toggle {
+        background: #f1f1f1;
+        padding: 5px 10px;
+        cursor: pointer;
+        margin-top: 5px;
+        font-weight: bold;
+        border-radius: 4px;
+      }
+
+      .process-toggle:hover {
+        background-color: #6f7fe9;
+      }
+
+      .image-thumb {
+        max-width: 100%;
+        height: auto;
+        margin: 5px 0;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      #imageModal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+      }
+
+      .modal-content {
+        position: relative;
+        max-width: 90%;
+        max-height: 90%;
+      }
+
+      .modal-content img {
+        max-width: 100%;
+        max-height: 90%;
+        border-radius: 8px;
+      }
+
+      .modal-filename {
+        color: white;
+        text-align: center;
+        margin: 1rem;
+      }
+
+      .modal-controls {
+        color: white;
+        position: absolute;
+        top: 50%;
+        font-size: 2rem;
+        cursor: pointer;
+        padding: 0 1rem;
+      }
+
+      .modal-controls.prev {
+        left: 0;
+      }
+
+      .modal-controls.next {
+        right: 0;
+      }
+
+      #more {
+        display: block;
+        margin: 2rem auto;
+        padding: 0.5rem 2rem;
+        font-size: 1rem;
+      }
+
+    .content-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+      /* Image Search Box (separate from original search) */
+    .image-search-container {
+        margin-bottom: 20px;
+    }
+
+    .image-search-box {
+        display: flex;
+        align-items: center;
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 25px;
+        padding: 5px 15px;
+        max-width: 400px;
+        transition: border-color 0.3s ease;
+    }
+
+    .image-search-box:focus-within {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .image-search-box input {
+        flex: 1;
+        border: none;
+        outline: none;
+        padding: 10px;
+        font-size: 14px;
+        background: transparent;
+    }
+
+    .image-search-box .search-icon {
+        color: #6c757d;
+        margin-right: 10px;
+    }
+
+    .clear-search {
+        display: none;
+        background: none;
+        border: none;
+        color: #6c757d;
+        cursor: pointer;
+        font-size: 16px;
+        padding: 5px;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+    }
+
+    .clear-search:hover {
+        background-color: #f8f9fa;
+        color: #495057;
+    }
+
+      /* Filter Pills 
+    .filter-container {
+        padding: 20px;
+        border-bottom: 1px solid #f0f0f0;
+        background-color: #f8f9fa;
+    }*/
+
+    .filter-pills {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .filter-pill {
+        padding: 8px 16px;
+        border: 2px solid #e9ecef;
+        background: white;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .filter-pill:hover {
+        border-color: #667eea;
+        background-color: #f8f9ff;
+    }
+
+    .filter-pill.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: transparent;
+    }
+
+        /* Download button inside modal */
+    .download-icon {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: white;
+    font-size: 1.8rem;
+    text-decoration: none;
+    background: rgba(0,0,0,0.5);
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+    }
+    .download-icon:hover {
+    background: rgba(0,0,0,0.8);
+    }
+
+    /* Thumbnail wrapper with hover download */
+    .thumb-wrapper {
+    position: relative;
+    display: inline-block;
+    }
+    .thumb-download {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    border-radius: 50%;
+    padding: 6px;
+    font-size: 1rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+    }
+    .thumb-wrapper:hover .thumb-download {
+    opacity: 1;
+    }
+
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Sensor Images</h1>
+      <div class="navigation-panel">
+        <a href="home_page.html">Home</a>
+        <div class="subnav">
+          <button class="subnavbtn">
+            Processes <i class="fa fa-caret-down"></i>
+          </button>
+          <div class="subnav-content">
+            <a href="process_encoder.html">Process Encoder</a>
+            <a href="process_views.html">Process List</a>
+          </div>
+        </div>
+        <div class="subnav">
+          <button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+          <div class="subnav-content">
+            <a href="batch_encoder.html">Batch Encoder</a>
+            <a href="batch_summary_exptable.html">Batch List</a>
+          </div>
+        </div>
+        <div class="subnav">
+          <button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+          <div class="subnav-content">
+            <a href="image_upload.html">Upload Images</a>
+            <a href="image_view.html">Sensor Images</a>
+          </div>
+        </div>
+        <div class="subnav">
+          <button class="subnavbtn">Updates <i class="fa fa-caret-down"></i></button>
+          <div class="subnav-content">
+            <a href="elec_update.html">Update Batch</a>
+            <a href="bulk_sensor_update.html">Update Sensors</a>
+          </div>
+        </div>
+        <div class="searchBox" id="searchBox">
+          <input type="text" id="searcH" placeholder="Search..." autofocus />
+          <div id="autocomplete-results" class="autocomplete-suggestions"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Filter Pills with Image Search -->
+    <div class="content-header">
+        <div class="filter-container">
+            <div class="image-search-container">
+                <div class="image-search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="searchBar" placeholder="Search images, sensors, processes..." autofocus>
+                    <button type="button" id="clearSearch" class="clear-search">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="filter-pills">
+                <button class="filter-pill active" data-filter="all">All Images</button>
+                <button class="filter-pill" data-filter="SP001">🌡️ SP001</button>
+                <button class="filter-pill" data-filter="SP002">💧 SP002</button>
+                <button class="filter-pill" data-filter="SP003">📊 SP003</button>
+                <button class="filter-pill" data-filter="SP004">📳 SP004</button>
+                <button class="filter-pill" data-filter="SP005">📡 SP005</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="batchSummary" class="card-container"></div>
+    <div id="nextBatch" class="nextBatch">
+    <button id="more">Load More</button>
+    </div>
+
+    <div id="imageModal" class="modal">
+    <span class="modal-controls prev" id="prevBtn">&#10094;</span>
+    <div class="modal-content">
+    <a id="modalDownload" class="download-icon" href="#" download title="Download Original">
+        <i class="fas fa-download"></i>
+    </a>
+    <div id="modalFilename" class="modal-filename"></div>
+    <img id="modalImage" src="" alt="" />
+</div>
+    <span class="modal-controls next" id="nextBtn">&#10095;</span>
+    </div>
+
+    <script type="module" src="../image_view/flatGrouped.js"></script>
+  </body>
+</html>

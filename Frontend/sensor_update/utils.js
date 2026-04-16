@@ -18,6 +18,8 @@ export function normalizeSensorId(id) {
     return `${loc}${paddedBatch}-${paddedWafer}-${paddedNumber}`;
 }
 
+
+
 /**
  * Create an  input listener that toggles checkbox based on input value
  */

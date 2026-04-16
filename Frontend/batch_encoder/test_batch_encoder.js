@@ -102,7 +102,7 @@ async function postBatchData() {
         });
     });
 
-    elem['wafer_processes'] = selectedProcesses;
+    elem['sensor_processes'] = selectedProcesses;
 
     console.log('Batch Data', JSON.stringify(elem));
 

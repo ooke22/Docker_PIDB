@@ -1,74 +1,28 @@
-import { retrieveElectrodeAPI, electrodeUpdateUrl } from "https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/url.js";
-
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
+import { retrieveBatchDetailURL, batchUpdateUrl } from "../shared/url.js";
+import { getCookie, getToken } from "../shared/utils.js";
+import { fetcProcesses } from "../shared/data-fetching.js";
+import { createUpdateTable, renderWaferProcessesTable } from "../shared/table-utils.js";
+import { populateProcessDropdown, selectedProcessList } from "../shared/process-utils.js";
 
 const csrftoken = getCookie('csrftoken');
+const token = getToken();
 
-function createUpdateTable() {
-    var table = document.getElementById('updateTable');
+const fieldsToUpdate = [
+    'batch_label', 'batch_description', 'wafer_label',
+    'wafer_description', 'wafer_design_id', 'sensor_label', 'sensor_description'
+];
 
-    const fieldsToUpdate = [
-        'batch_label', 'batch_description', 'wafer_label', 'wafer_description', 'wafer_design_id',
-        'wafer_process_id', 'wafer_build_time', 'sensor_label', 'sensor_description', 'electrode_type',
-        'electrode_label', 'electrode_description'
-    ];
-
-    for (var i = 0; i < fieldsToUpdate.length; i++) {
-        var row = table.insertRow(i + 1);
-
-        // Field cell
-        var fieldCell = row.insertCell(0);
-        fieldCell.innerHTML = fieldsToUpdate[i].replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-
-        // Checkbox cell
-        var checkboxCell = row.insertCell(1);
-        var checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `update_${fieldsToUpdate[i]}`;
-        checkbox.name = `update_${fieldsToUpdate[i]}`;
-        checkboxCell.appendChild(checkbox);
-
-        // New Value cell
-        var newValueCell = row.insertCell(2);
-        var newValueInput = document.createElement('input');
-        newValueInput.type = 'text';
-        newValueInput.id = `new_${fieldsToUpdate[i]}`;
-        newValueInput.name = `new_${fieldsToUpdate[i]}`;
-        newValueCell.appendChild(newValueInput);
-
-        // Attach event listener to the 'New Values' input element
-        newValueInput.addEventListener('input', createInputListener(checkbox));
-    }
-}
-
-// Helper function to create an input listener with closure
-function createInputListener(checkbox) {
-    return function () {
-        // Automatically select the corresponding checkbox when a user enters a new value
-        checkbox.checked = this.value !== '';
-    };
-}
+let deleteList = [];
 
 async function retrieveData() {
-    var batchLocation = document.getElementById('batch_location').value;
-    var batchId = document.getElementById('batch_id').value;
+    const loader = document.getElementById('loader');
+    loader.style.display = 'block';
+
+    const batchLocation = document.getElementById('batch_location').value;
+    const batchID = document.getElementById('batch_id').value;
 
     try {
-        const token = localStorage.getItem('token');
-        const url = retrieveElectrodeAPI(batchLocation, batchId); // Generate the full API
+        const url = retrieveBatchDetailURL(batchLocation, batchID);
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -76,50 +30,72 @@ async function retrieveData() {
                 'X-CSRFToken': csrftoken,
             }
         });
-        if (!response.ok) {
-            throw new Error(`HTTP error: Status: ${response.status}`);
-        }
+
+        if (!response.ok) throw new Error(`HTTP error: Status: ${response.status}`);
 
         const data = await response.json();
-        console.log('Retrieved Data: ', data);
+        console.log('Retrieved Data:', data);
 
-        // Display electrode Details
-        document.getElementById('batchLocation').innerText = 'Batch Location: ' + data.batch_location;
-        document.getElementById('batchId').innerText = 'Batch ID: ' + data.batch_id;
-        document.getElementById('waferIds').innerText = 'Total Wafers: ' + data.total_wafers;
-        document.getElementById('sensorIds').innerText = 'Total Sensors: ' + data.total_sensors;
-        document.getElementById('electrodeIds').innerText = 'Total Electrodes: ' + data.total_electrodes;
+        document.getElementById('batchLocation').innerText = `Batch Location: ${data.batch_location}`;
+        document.getElementById('batchId').innerText = `Batch ID: ${data.batch_id}`;
+        document.getElementById('waferIds').innerText = `Total Wafers: ${data.total_wafers}`;
+        document.getElementById('sensorIds').innerText = `Total Sensors: ${data.total_sensors}`;
 
+        renderWaferProcessesTable(data.sensor_processes, deleteList);
         document.getElementById('electrodeDetails').style.display = 'block';
+        createUpdateTable([], fieldsToUpdate);
 
-        // Call createUpdateTable after data has been retrieved
-        createUpdateTable();
-        
     } catch (error) {
-        console.error('Error retrieving batch details: ', error);
+        console.error('Error retrieving batch details:', error);
+    } finally {
+        loader.style.display = 'none';
     }
 }
 
-async function updateElectrode() {
-    var batchLocation = document.getElementById('batch_location').value;
-    var batchId = document.getElementById('batch_id').value;
+let processes = [];
 
+async function retrieveProcesses() {
     try {
-        const fieldsToUpdate = Array.from(document.querySelectorAll('input[id^="update_"]:checked')).map(checkbox => checkbox.name.replace('update_', ''));
+        processes = await fetcProcesses();
+        populateProcessDropdown(processes);
+    } catch (error) {
+        console.error('Error retrieving processes: ', error);
+    }    
+}
 
-        const newData = {};
-        fieldsToUpdate.forEach(field => {
-            const newValue = document.getElementById(`new_${field}`).value;
-            newData[field] = newValue;
-        })
+async function updateElectrode() {
+    const loader = document.getElementById('loader');
+    const overlay = document.getElementById('overlay');
+    loader.style.display = 'block';
+    overlay.style.display = 'block';
 
-        const waferIds = document.getElementById('update_wafer_ids').value;
-        const sensorIds = document.getElementById('update_sensor_ids').value;
-        const electrodeIds = document.getElementById('update_electrode_ids').value;
+    const newProcessData = selectedProcessList;
+    console.log('New Process Data:', newProcessData);
 
-        const token = localStorage.getItem('token');
-        const url = electrodeUpdateUrl(batchLocation, batchId);
-        const response = await fetch(url, {
+    const batchLocation = document.getElementById('batch_location').value;
+    const batchID = document.getElementById('batch_id').value;
+
+    const updateData = {};
+    fieldsToUpdate.forEach(field => {
+        const checkbox = document.getElementById(`update_${field}`);
+        const newValue = document.getElementById(`new_${field}`).value;
+        if (checkbox.checked && newValue) {
+            updateData[field] = newValue;
+        }
+    });
+
+    const requestBody = JSON.stringify({
+        wafer_ids: document.getElementById('wafer_ids').value,
+        sensor_ids: document.getElementById('sensor_ids').value,
+        new_process_data: newProcessData,
+        updates: updateData,
+        delete_list: deleteList
+    });
+
+    console.log('Data sent to the backend:', JSON.parse(requestBody));
+    try {
+        //const updateURL = batchUpdateUrl(batchLocation, batchID);
+        const response = await fetch(`http://127.0.0.1/batch-encoder/update-batch/${batchLocation}/${batchID}/`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -127,10 +103,11 @@ async function updateElectrode() {
                 'X-CSRFToken': csrftoken,
             },
             body: JSON.stringify({
-                wafer_ids: waferIds,
-                sensor_ids: sensorIds,
-                electrode_ids: electrodeIds,
-                update_data: newData,
+                wafer_ids: document.getElementById('wafer_ids').value,
+                sensor_ids: document.getElementById('sensor_ids').value,
+                new_process_data: newProcessData,
+                updates: updateData,
+                delete_list: deleteList
             }),
         });
 
@@ -138,18 +115,24 @@ async function updateElectrode() {
             const errorText = await response.text();
             console.error('HTTP error details: ', response.status, errorText);
             throw new Error('HTTP error! Status: ' + response.status)
+        } else {
+            const data = await response.json();
+            console.log('Update response:', data);
+            alert(`Update Successful!`);
+            deleteList = [];
+            window.location.reload();
         }
-
-        const data = await response.json();
-        alert('Update Successful!');
     } catch (error) {
-        console.error('Error updating electrodes: ', error);
-        alert('Error updating electrodes.');
+        console.error('Error updating sensors: ', error);
+        alert('Error updating sensors.');
+    } finally {
+        loader.style.display = 'none';
+        overlay.style.display = 'none';
     }
-
 }
 
+document.getElementById('loader').style.display = 'none';
 document.getElementById('retrieveButton').addEventListener('click', retrieveData);
-
 document.getElementById('updateButton').addEventListener('click', updateElectrode);
 
+retrieveProcesses();

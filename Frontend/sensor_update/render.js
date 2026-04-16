@@ -24,12 +24,13 @@ export function renderResults(sensors) {
 
     const table = document.createElement('table');
     table.style.width = '100%';
+    const tbody = document.createElement('tbody');
 
     let row;
     sensors.forEach((sensor, index) => {
         if (index % 7 === 0) {
             row = document.createElement('tr');
-            table.appendChild(row);
+            tbody.appendChild(row);
         }
 
         const cell = document.createElement('td');
@@ -38,6 +39,7 @@ export function renderResults(sensors) {
         row.appendChild(cell);
     });
 
+    table.appendChild(tbody);
     container.appendChild(table);
     document.getElementById('validSensors').style.display = 'block';
 

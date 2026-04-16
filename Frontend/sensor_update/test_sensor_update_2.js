@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function fetchLabels() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://127.0.0.1:8000/test/s_l/', {
+        const response = await fetch('http://127.0.0.1:8000/batch-encoder/s-l/', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         labelOptions = await response.json();
@@ -90,7 +90,7 @@ async function validateSensors() {
     }
 
     try {
-        const res = await fetch('http://127.0.0.1:8000/test/verify_sensors_3/', {
+        const res = await fetch('http://127.0.0.1:8000/batch-encoder/verify-sensors/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -166,7 +166,7 @@ async function submitUpdates() {
     console.log("Submitting payload to the backed", payload);
 
     try {
-        const res = await fetch('http://127.0.0.1:8000/test/sensor/bulk-update/', {
+        const res = await fetch('http://127.0.0.1:8000/batch-encoder/sl-update/', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',

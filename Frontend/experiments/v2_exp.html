@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Experiment</title>
+    <link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+    <link rel="stylesheet" href="../shared/style.css">
+    <link rel="stylesheet" href="create_experiment.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+<body>
+    <header>
+        <h1>Create Experiment</h1>
+        <!-- Navigation Panel-->
+        <div class="navigation-panel">
+            <a href="home_page.html">Home</a>
+            <div class="subnav">
+                <button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="\process_encoder\process_encoder.html">Process Encoder</a>
+                    <a href="\process_views.html">Process List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="\batch_encoder.html">Batch Encoder</a>
+                    <a href="/batch_encoder\batch_summary.html">Batch List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="image_upload.html">Upload Images</a>
+                    <a href="image_view.html">Electrode Images List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Updates <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="update_test_5.html">Update Batch</a>
+                    <a href="sensor_update.html">Update Sensors</a>
+                </div>
+            </div>
+            <div class="searchBox" id="searchBox">
+                <input type="text" id="searcH" placeholder="Search..." autofocus>
+                <div id="autocomplete-results" class="autocomplete-suggestions"></div>
+            </div>
+        </div>
+
+        <div id="user-dropdown" class="userDropdown">
+            <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+            <span id="user-name" class="user-name">Username</span>
+            <div class="userDropdown-content" id="userDropdown-content">
+                <button id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="form-container">
+            <div id="alertContainer"></div>
+
+            <form id="experimentForm">
+                <!-- Basic Information -->
+                <div class="section">
+                    <h2 class="section-title">Basic Information</h2>
+                    
+                    <div class="form-group">
+                        <label for="experimentId">
+                            Experiment ID <span class="required">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="experimentId" 
+                            name="experiment_id"
+                            placeholder="e.g., CE-123"
+                            required
+                        >
+                        <div class="help-text">Unique identifier for this experiment</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="title">
+                            Title <span class="required">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="title" 
+                            name="title"
+                            placeholder="e.g., Long Term Drift Analysis - Batch M021"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea 
+                            id="description" 
+                            name="description"
+                            placeholder="Detailed description of the experiment..."
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="experimentType">Experiment Type</label>
+                        <select id="experimentType" name="experiment_type">
+                            <option value="">Select type...</option>
+                            <option value="Long Term Drift">Long Term Drift</option>
+                            <option value="Short Term Drift">Short Term Drift</option>
+                            <option value="Thickness Measurement">Thickness Measurement</option>
+                            <option value="Calibration">Calibration</option>
+                            <option value="Stability Test">Stability Test</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="testDate">Test Date</label>
+                        <input type="datetime-local" id="testDate" name="test_date">
+                    </div>
+
+                </div>
+
+                <!-- Sensor Groups Configuration -->
+                <div class="section">
+                    <h2 class="section-title">Sensor Configuration</h2>
+                    <div class="help-text" style="margin-bottom: 1rem;">
+                        Group sensors by their measurement setup or configuration. Each group represents sensors working together.
+                    </div>
+                    
+                    <div id="groupList" class="group-list"></div>
+                    
+                    <button type="button" class="add-group-btn" id="addGroupBtn">
+                        <span>+</span> Add Sensor Group
+                    </button>
+                </div>
+
+                <!-- Experimental Data -->
+                <div class="section">
+                    <h2 class="section-title">Experimental Data (Optional)</h2>
+                    
+                    <div class="form-group">
+                        <label for="csvFile">Upload CSV File</label>
+                        <div class="file-upload">
+                            <input 
+                                type="file" 
+                                id="csvFile" 
+                                accept=".csv,.txt"
+                            >
+                            <div class="file-upload-label" id="fileLabel">
+                                <span>📄</span>
+                                <span id="fileName">Choose CSV file or drag and drop</span>
+                            </div>
+                        </div>
+                        <div class="help-text">CSV file containing experimental steps and parameters</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">Additional Notes</label>
+                        <textarea 
+                            id="notes" 
+                            name="notes"
+                            placeholder="Any additional observations or notes..."
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="button-group">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <span id="submitText">Create Experiment</span>
+                        <div id="submitSpinner" class="spinner" style="display: none;"></div>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="v2_exp.js"></script>
+</body>
+</html>

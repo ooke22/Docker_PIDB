@@ -10,7 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+import sys
+import atexit
+from pymongo import MongoClient
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -41,7 +45,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'process_encoder',
     'experiments',
-    'corsheaders'
+    'corsheaders',
+    'batch_encoder',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -98,21 +104,57 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'Test_Database_4.wsgi.application'
+#WSGI_APPLICATION = 'Test_Database_4.wsgi.application'
+
+ASGI_APPLICATION = 'Test_Database_4.asgi.application'
+
+# Channels layer using Redis
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [os.environ.get("REDIS_URL", "redis://redis:6379/0")],
+        },
+    },
+}
 
 
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
+
+IS_TESTING = 'test' in sys.argv or 'pytest' in sys.argv[0]
+
+# Parse MongoDB URI properly for Docker
+MONGODB_URI = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017')
+# Extract database name from URI or use default
+if '/LocalTest' in MONGODB_URI:
+    MONGODB_HOST = MONGODB_URI
+    MONGODB_DB_NAME = 'LocalTest'
+else:
+    MONGODB_HOST = MONGODB_URI + '/LocalTest'
+    MONGODB_DB_NAME = 'LocalTest'
+
 DATABASES = {
     'default': {
         'ENGINE': 'djongo',
+        'NAME': MONGODB_DB_NAME,
         'CLIENT': {
-            'host': 'mongodb://localhost:27017',
-            'name': 'LocalTest'
+            'host': MONGODB_HOST,
+            'name': 'TestDB' if IS_TESTING else MONGODB_DB_NAME
         }
     }
 }
+
+if IS_TESTING:
+    print("🧪 Running tests on isolated MongoDB database: TestDB")
+
+    def cleanup_test_db():
+        print("🧹 Dropping TestDB after test run...")
+        client = MongoClient('mongodb://localhost:27017')
+        client.drop_database('TestDB')
+
+    atexit.register(cleanup_test_db)
 
 
 # Password validation
@@ -157,3 +199,19 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = 'UTC'
+CELERY_ENABLE_UTC = True
+
+# Store results in Redis instead of database
+CELERY_CACHE_BACKEND = 'redis//localhost:6379/1'
+CELERY_RESULTS_EXPIRES = 3600

@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view
-from .models import Sensor, Image, SensorProcessRelation, SensorLabel
+from .models import Sensor, Image, SensorProcessRelation, SensorLabel, ImageGroup
 from process_encoder.models import ProcessFile
 from .serializer import ImageSerializer, TestSensorSerializer, BatchSerializer, SensorSerializer, SearchFuncSerializer, DetailSerializer, SensorFilterSerializer, SensorProcessRelationSerializer, SensorLabelSerializer, SLSerializer, UIDSerializer
 from datetime import datetime, timezone
@@ -9,118 +9,19 @@ from django.db.utils import IntegrityError
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q, Count
 import logging
+import os, io
+from django.core.cache import cache
+import traceback
+import time
+from django.core.files.base import ContentFile
+from PIL import Image as PilImage
 logger = logging.getLogger(__name__)
 
 
-
 @api_view(['POST'])
-def bulk_create_2(request):
-    try:
-        batch_data = request.data
-        print(f"Batch Data: {batch_data}")
-        sensors = []
-        process_file_map = {}
-
-        batch_location = batch_data.get('batch_location')
-        batch_id = batch_data.get('batch_id')
-        batch_label = batch_data.get('batch_label', '')
-        batch_description = batch_data.get('batch_description', '')
-
-        total_wafers = int(batch_data['total_wafers'])
-        total_sensors = int(batch_data['total_sensors'])
-        print(f"Wafers and Sensors: {total_wafers}, {total_sensors}")
-
-        with transaction.atomic():
-            for i_w in range(total_wafers):
-                wafer_id = i_w + 1
-                wafer_label = batch_data.get('wafer_label', '')
-                wafer_description = batch_data.get('wafer_description', '')
-                wafer_design_id = batch_data.get('wafer_design_id', '')
-                wafer_build_time = batch_data.get('wafer_build_time', '')
-
-                sensor_processes = batch_data.get('sensor_processes', [])
-
-                for i_s in range(total_sensors):
-                    sensor_id = i_s + 1
-                    sensor_label = batch_data.get('sensor_label', '')
-                    sensor_description = batch_data.get('sensor_description', '')
-
-                    sensor = Sensor(
-                        batch_location=batch_location,
-                        batch_id=batch_id,
-                        batch_label=batch_label,
-                        batch_description=batch_description,
-                        total_wafers=total_wafers,
-                        total_sensors=total_sensors,
-                        wafer_id=wafer_id,
-                        wafer_label=wafer_label,
-                        wafer_description=wafer_description,
-                        wafer_design_id=wafer_design_id,
-                        #wafer_build_time=wafer_build_time,
-                        sensor_id=sensor_id,
-                        sensor_label=sensor_label,
-                        sensor_description=sensor_description,
-                    )
-                    sensors.append(sensor)
-
-                    # Store ManyToMany relations with timestamps using the unique identifier
-                    unique_identifier = sensor.get_unique_identifier()
-                    process_file_map[unique_identifier] = sensor_processes
-
-            # Bulk insert all Electrode objects at once
-            Sensor.objects.bulk_create(sensors, batch_size=1000)
-
-            # Retrieve saved electrodes with their primary keys
-            saved_sensors = Sensor.objects.filter(
-                batch_location=batch_location, batch_id=batch_id
-            ).filter(sensor_id__lte=total_sensors)
-
-            # Prepare WaferProcessRelation entries
-            sensor_process_relations = []
-            for sensor in saved_sensors:
-                unique_identifier = sensor.get_unique_identifier()
-                sensor_processes = process_file_map.get(unique_identifier, [])
-                
-
-                for process_data in sensor_processes:
-                    process_id = process_data.get('process_id')
-                    timestamp = process_data.get('timestamp')
-                    #unique_identifier = electrode.get_unique_identifier()
-
-                    if timestamp:
-                        timestamp = timestamp.rstrip('Z')
-                        timestamp = datetime.fromisoformat(timestamp).replace(tzinfo=timezone.utc)
-                        
-                    print('unique_identifier:', unique_identifier)
-
-                    process_file = ProcessFile.objects.get(process_id=process_id)
-
-                    sensor_process_relations.append(
-                        SensorProcessRelation(
-                            sensor=sensor,
-                            process_file=process_file,
-                            timestamp=timestamp,
-                            unique_identifier=unique_identifier  # Include unique identifier
-                        )
-                    )
-
-            # Bulk insert all WaferProcessRelation entries
-            SensorProcessRelation.objects.bulk_create(sensor_process_relations, batch_size=1000)
-
-            return Response({'message': 'Sensor objects created with processes and timestamps'}, status=status.HTTP_201_CREATED)
-
-    except ProcessFile.DoesNotExist:
-        return Response({'error': 'One or more process files not found'}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
- 
- 
- 
-
-@api_view(['POST'])
-def bulk_create_(request):
+def batch_encoder(request):
     try:
         batch_data = request.data
         sensors = []
@@ -145,7 +46,6 @@ def bulk_create_(request):
 
                 for i_s in range(total_sensors):
                     sensor_id = i_s + 1
-                    sensor_label = batch_data.get('sensor_label', '')
                     sensor_description = batch_data.get('sensor_description', '')
 
                     sensor = Sensor(
@@ -160,27 +60,23 @@ def bulk_create_(request):
                         wafer_description=wafer_description,
                         wafer_design_id=wafer_design_id,
                         sensor_id=sensor_id,
-                        sensor_label=sensor_label,
                         sensor_description=sensor_description,
                     )
+                    sensor.unique_identifier = sensor.get_unique_identifier()
+                    
                     sensors.append(sensor)
-
-                    unique_identifier = sensor.get_unique_identifier()
-                    process_file_map[unique_identifier] = sensor_processes
+                    process_file_map[sensor.unique_identifier] = sensor_processes
 
             # Bulk insert all Sensor objects at once
             Sensor.objects.bulk_create(sensors, batch_size=1000)
 
-            # Efficiently retrieve saved sensors using batch identifiers
-            saved_sensors = list(
-                Sensor.objects.filter(
-                    batch_location=batch_location, batch_id=batch_id
-                )
-            )
+            # Efficiently retrieve saved sensors using u_ids
+            unique_ids = list(process_file_map.keys())
+            saved_sensors = Sensor.objects.filter(unique_identifier__in=unique_ids)
+            sensor_lookup = {sensor.unique_identifier: sensor for sensor in saved_sensors}
 
             # Prepare SensorProcessRelation entries
             sensor_process_relations = []
-            sensor_lookup = {sensor.get_unique_identifier(): sensor for sensor in saved_sensors}
 
             for unique_identifier, sensor_processes in process_file_map.items():
                 sensor = sensor_lookup.get(unique_identifier)
@@ -216,14 +112,30 @@ def bulk_create_(request):
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
- 
- 
+def parse_range(range_str):
+    if range_str:
+        result = []
+        for ids in range_str.split(','):
+            if '-' in ids:
+                start, end = map(int, ids.split('-'))
+                result.extend(range(start, end + 1))
+            else:
+                result.append(int(ids))
+        return result
+    return []
+
+def get_all_wafer_ids():
+    """Returns a list of all wafer IDs in the database."""
+    return list(Sensor.objects.values_list('wafer_id', flat=True).distinct())
+
+def get_all_sensor_ids():
+    return list(Sensor.objects.values_list('sensor_id', flat=True).distinct())
  
  
 #TODO: Used in testing and production
 # Speed test 5 optimized for multi-reponses. THIS WORKS TOO
 @api_view(['PUT'])
-def update_sensors_4(request, batch_location, batch_id):
+def update_batch(request, batch_location, batch_id):
     # Extract data from the request
     data = request.data
     print("Received data:", data)
@@ -289,10 +201,12 @@ def update_sensors_4(request, batch_location, batch_id):
                     SensorProcessRelation.objects.bulk_create(
                         sensor_process_relations, ignore_conflicts=True
                     )
+                    print("✅ Sensor-process relations successfully created")
                     response_details["created_items"] = len(sensor_process_relations)
                 except Exception as e:
                     print(f"Error during bulk_create: {e}")
-                    raise
+                    traceback.print_exc()
+                    raise e
             elif not sensor_process_relations:
                 print("No valid sensor-process relations to insert.")
 
@@ -318,6 +232,7 @@ def update_sensors_4(request, batch_location, batch_id):
         return Response({'error': str(ve)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         print(f"Error in processing request: {e}")
+        traceback.print_exc()
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -325,33 +240,13 @@ def update_sensors_4(request, batch_location, batch_id):
 
 @api_view(['GET'])
 def bulk_electrode_view(request):
-    sensors = Sensor.objects.all().prefetch_related('wafer_process_relations', 'images')
+    sensors = Sensor.objects.all().prefetch_related('sensor_process_relations', 'images')
     serializer = BatchSerializer(sensors, many=True)
     return Response(serializer.data)
     
     
-def parse_range(range_str):
-    if range_str:
-        result = []
-        for ids in range_str.split(','):
-            if '-' in ids:
-                start, end = map(int, ids.split('-'))
-                result.extend(range(start, end + 1))
-            else:
-                result.append(int(ids))
-        return result
-    return []
-
-def get_all_wafer_ids():
-    """Returns a list of all wafer IDs in the database."""
-    return list(Sensor.objects.values_list('wafer_id', flat=True).distinct())
-
-def get_all_sensor_ids():
-    return list(Sensor.objects.values_list('sensor_id', flat=True).distinct())
-
-    
 class BatchPaginator(PageNumberPagination):
-    page_size = 150 # Default page size
+    page_size = 5 # Default page size
     page_size_query_param = 'page_size'
     max_page_size = 300
     
@@ -776,15 +671,11 @@ def search_electrode(request):
             return Response({'error': 'No identifier provided'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Parse the identifuer into individual components
-        batch_location, batch_id, wafer_id, sensor_id = parse_sensor_identifier(identifier)
+        #batch_location, batch_id, wafer_id, sensor_id = parse_sensor_identifier(identifier)
         
         # Corresponding electrodes in the database
         sensor = Sensor.objects.filter(
-            batch_location = batch_location,
-            batch_id=batch_id, 
-            wafer_id=wafer_id,
-            sensor_id=sensor_id,
-            #electrode_id=electrode_id
+            unique_identifier=identifier
         ).prefetch_related('images', 'sensor_process_relations').first()
         
         if not sensor:
@@ -1063,58 +954,8 @@ def delete_process(request, b_l, b_id):
         print(f"Error during deletion: {e}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['GET'])
-def electrodedetail(request, batch_location, batch_id):
-    try:
-        sensor = Sensor.objects.filter(batch_location=batch_location, batch_id=batch_id).prefetch_related('sensor_process_relations')
-        serializer = DetailSerializer(sensor, many=True)
 
-        serialized_data = serializer.data[0] if serializer.data else {}
-        return Response(serialized_data)
-    except Sensor.DoesNotExist:
-        return Response({'error': 'Electrode not found'}, status=status.HTTP_404_NOT_FOUND)
-    
-@api_view(['GET'])
-def batch_detail_2(request, batch_location, batch_id):
-    try:
-        sensor_process_queryset = SensorProcessRelation.objects.only('process_file', 'timestamp', 'unique_identifier')
-        image_queryset = Image.objects.only('process_id', 'image')
-        
-        sensor = Sensor.objects.filter(batch_location=batch_location, batch_id=batch_id).prefetch_related(
-            Prefetch('process_relations', queryset=sensor_process_queryset),
-            Prefetch('images', queryset=image_queryset)
-        )
-        
-        serializer = DetailSerializer(sensor, many=True)
-        serialized_data = serializer.data[0] if serializer.data else {}
-        return Response(serialized_data)
-    except Sensor.DoesNotExist:
-        return Response({'error': 'Electrode not found'}, status=status.HTTP_404_NOT_FOUND)
-    
-
-@api_view(['GET'])
-def batch_detail_3(request, batch_location, batch_id):
-    try:
-        # Use only required fields in the query to reduce data retrieval load
-        sensor_queryset = (Sensor.objects.filter(batch_location=batch_location, batch_id=batch_id)
-            .select_related()  # Prefetch related fields efficiently
-            .prefetch_related(
-                Prefetch(
-                    'process_relations', 
-                    queryset=SensorProcessRelation.objects.select_related('process_file').only('process_file_id', 'timestamp', 'unique_identifier')
-                ),
-            )
-        )
-        
-        # Serialize the data
-        serializer = DetailSerializer(sensor_queryset, many=True)
-
-        # Return data (return only the first object if required, as per the original logic)
-        serialized_data = serializer.data[0] if serializer.data else {}
-        return Response(serialized_data)
-    except Sensor.DoesNotExist:
-        return Response({'error': 'Electrode not found'}, status=status.HTTP_404_NOT_FOUND)
-
+# In use on test and prod server
 @api_view(['GET'])
 def batch_detail_4(request, batch_location, batch_id):
     try:
@@ -1190,9 +1031,10 @@ def get_batches(request):
     
 @api_view(['GET'])
 def electrode_dropdown(request):
-    sensors = Sensor.objects.all()
-    serializer = UIDSerializer(sensors, many=True)
-    return Response(serializer.data)
+    sensors = Sensor.objects.values_list('unique_identifier', flat=True)
+    #serializer = UIDSerializer(sensors, many=True)
+    #data = [{"unique_identifier": uid} for uid in sensors]
+    return Response(list(sensors))
 
 
 @api_view(['POST'])
@@ -1226,19 +1068,23 @@ def upload_image(request):
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
 # Refactored sensor image upload
+@api_view(['POST'])
 def upload_image_2(request):
     '''
     Refactored image upload function which uses the new unique_identifier field in the data model for faster lookup of sensor objects.
     '''
     u_ids = request.data.getlist('u_ids')
-    process_id = request.data.get('process_id')
+    process_ids = request.data.getlist('process_ids')
     image_files = request.FILES.getlist('image_files')
+    print(f"UIDS: {u_ids}, PROCESSES: {process_ids}, FILES: {image_files}")
     
-    if len(image_files) != len(u_ids):
-        return Response({'error': 'Mismatch between the number of images and sensor u_ids.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not len(image_files) == len(process_ids) == len(u_ids):
+        return Response({'error': 'Mismatch between the number of images, processes, and sensor u_ids.'}, status=status.HTTP_400_BAD_REQUEST)
     try:
-        for i, image_file in enumerate(image_files):
+        for i in range(len(image_files)):
             u_id = u_ids[i]
+            process_id = process_ids[i]
+            image_file = image_files[i]
             
             sensor = Sensor.objects.filter(unique_identifier=u_id).first()
             
@@ -1250,6 +1096,57 @@ def upload_image_2(request):
         return Response({'message': 'Image uploaded successfully'}, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['POST'])
+def upload_image_3(request):
+    """ 
+    Refactored image upload function supporting grouped uploads with multiple images for the same sensor and process ID.
+    """
+    u_ids = request.data.getlist('u_ids')
+    process_ids = request.data.getlist('process_ids')
+    image_files = request.FILES.getlist('image_files')
+    
+    print(f"{u_ids}\n{process_ids}\n{image_files}")
+    
+    if not len(image_files) == len(process_ids) == len(u_ids):
+        print(f"Number of image files: {len(image_files)}\nNumber of process_ids: {len(process_ids)}\nNumber of u_ids: {len(u_ids)}")
+        return Response({'error': 'Mismatch between image_files, process_ids, and u_ids count.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    success_count = 0
+    failure_details = []
+    
+    for i in range(len(image_files)):
+        u_id = u_ids[i]
+        process_id = process_ids[i]
+        image_file = image_files[i]
+        
+        try:
+            sensor = Sensor.objects.filter(unique_identifier=u_id).first()
+            if not sensor:
+                failure_details.append({
+                    'index': i,
+                    'u_id': u_id,
+                    'reason': 'Sensor not found.'
+                }) 
+                continue
+            
+            Image.objects.create(sensor=sensor, process_id=process_id, image=image_file)
+            success_count += 1
+            
+        except Exception as e:
+            failure_details.append({
+                'index': i,
+                'u_id': u_id,
+                'reason': str(e)
+            })
+    
+    if not success_count:
+        return Response({'error': 'No images were uploaded.', 'details': failure_details}, status=status.HTTP_400_BAD_REQUEST)
+    
+    return Response({
+        'message': f'{success_count} image(s) uploaded successfully!',
+        'failures': failure_details
+    }, status=status.HTTP_201_CREATED)
     
     
 
@@ -1276,14 +1173,59 @@ def get_images(request):
     #return Response(image_data)
     return paginator.get_paginated_response(paginated_data)
 
+@api_view(['GET'])
+def get_images_2(request):
+    sensor_query = request.GET.get('sensor', '').lower()
+    process_query = request.GET.get('process', '').lower()
+
+    images = Image.objects.all()
+
+    if sensor_query:
+        images = images.filter(sensor__unique_identifier__icontains=sensor_query)
+    if process_query:
+        images = images.filter(process_id__icontains=process_query)
+        
+    image_data = []
+
+    for image in images:
+        unique_identifier = image.sensor.get_unique_identifier()
+
+        # Extract filename without extension
+        filename = os.path.basename(image.image.name)
+        base, ext = os.path.splitext(filename)
+
+        image_data.append({
+            'sensor': unique_identifier,
+            'process_id': image.process_id,
+            'image': image.image.url,
+            'file_name': filename,          # full filename (e.g., M007-01-001_t.png)
+            'suffix': base.split('_')[-1] if '_' in base else '',  # extract 't' or 'w'
+        })
+
+    paginator = BatchPaginator()
+    paginated_data = paginator.paginate_queryset(image_data, request)
+    return paginator.get_paginated_response(paginated_data)
+
 
 # POST sensorlabels
+# Refactored to allow creation of multiple SensorLabel entries in one POST request using Postman
 @api_view(['POST'])
 def sensor_label(request):
-    serializer = SensorLabelSerializer(data=request.data)
+    data = request.data 
+    # check if data is a list (bulk creation) or a single object
+    if isinstance(data, list):
+        serializer = SensorLabelSerializer(data=data, many=True)
+    else: 
+        serializer = SensorLabelSerializer(data=data)
+        
     if serializer.is_valid():
-        label = serializer.save()
-        print(f"Label Created: {label.name}")
+        labels = serializer.save()
+        # Print all created label names
+        if isinstance(labels, list):
+            for label in labels:
+                print(f"Label created: {label.name}")
+        else:
+            print(f"Label created: {labels.name}")
         return Response({'message': 'Labels created successfully!'}, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1758,6 +1700,23 @@ def update_sensors_labels_2(request):
         print(f"Error in processing request: {e}")
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['DELETE'])
+def sensor_delete(request, u_id): 
+    try:
+        sensor = Sensor.objects.filter(unique_identifier=u_id) 
+        
+        if not sensor.exists():
+            return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
+        sensor.delete()
+
+        return Response({'error': 'Item deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
 
 
 
@@ -1768,7 +1727,7 @@ import tempfile
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import MultiPartParser
 from PyPDF2 import PdfReader
-from PIL import Image
+#from PIL import Image
 import pytesseract
 
 @api_view(['POST'])
@@ -1825,4 +1784,1396 @@ def upload_file_and_get_sensors(request):
 
     
     
+class ImagePaginator(PageNumberPagination):
+    page_size = 150  # Default page size
+    page_size_query_param = 'page_size'
+    max_page_size = 300
+    
+    def get_paginated_response(self, data):
+        return Response({
+            'next': self.get_next_link(),
+            'previous': self.get_previous_link(),
+            'count': self.page.paginator.count,
+            'total_pages': self.page.paginator.num_pages,
+            'current_page': self.page.number,
+            'page_size': self.page_size,
+            'results': data
+        })
 
+@api_view(['GET'])
+def get_images_enhanced(request):
+    """
+    Enhanced image API with search, filtering, and optimized pagination
+    """
+    # Get query parameters
+    search_query = request.GET.get('search', '').strip()
+    sensor_filter = request.GET.get('sensor', '').strip()
+    process_filter = request.GET.get('process_id', '').strip()
+    image_type_filter = request.GET.get('type', '').strip()  # t, h, p, v, w
+    sort_by = request.GET.get('sort', 'sensor')  # sensor, process_id, file_name, created_at
+    sort_order = request.GET.get('order', 'asc')  # asc, desc
+    
+    # Create cache key for this specific query
+    cache_key = f"images_{hash(str(request.GET))}"
+    cached_result = cache.get(cache_key)
+    
+    if cached_result and not search_query:  # Don't cache search results
+        return cached_result
+    
+    # Start with all images
+    images = Image.objects.select_related('sensor').all()
+    
+    # Apply filters
+    if search_query:
+        images = images.filter(
+            Q(sensor__unique_identifier__icontains=search_query) |
+            Q(process_id__icontains=search_query) |
+            Q(image__icontains=search_query)
+        )
+    
+    if sensor_filter:
+        images = images.filter(sensor__unique_identifier=sensor_filter)
+    
+    if process_filter:
+        images = images.filter(process_id__icontains=process_filter)
+    
+    if image_type_filter and image_type_filter != 'all':
+        # Filter by suffix (t, h, p, v, w)
+        images = images.filter(image__icontains=f'_{image_type_filter}.')
+    
+    # Apply sorting
+    sort_field = sort_by
+    if sort_order == 'desc':
+        sort_field = f'-{sort_field}'
+    
+    images = images.order_by(sort_field, 'id')  # Add id for consistent pagination
+    
+    # Process image data
+    image_data = []
+    for image in images:
+        unique_identifier = image.sensor.get_unique_identifier()
+        filename = os.path.basename(image.image.name)
+        base, ext = os.path.splitext(filename)
+        
+        # Extract suffix more reliably
+        suffix = ''
+        if '_' in base:
+            parts = base.split('_')
+            suffix = parts[-1] if len(parts) > 1 else ''
+        
+        image_data.append({
+            'id': image.id,
+            'sensor': unique_identifier,
+            'process_id': image.process_id or 'Unspecified',
+            'image': image.image.url,
+            'file_name': filename,
+            'suffix': suffix,
+            'created_at': image.created_at.isoformat() if hasattr(image, 'created_at') else None,
+            'file_size': image.image.size if image.image else 0,
+        })
+    
+    # Paginate the processed data
+    paginator = ImagePaginator()
+    paginated_data = paginator.paginate_queryset(image_data, request)
+    response = paginator.get_paginated_response(paginated_data)
+    
+    # Add metadata
+    response.data['metadata'] = {
+        'total_sensors': images.values('sensor__unique_identifier').distinct().count(),
+        'total_processes': images.values('process_id').distinct().count(),
+        'search_applied': bool(search_query),
+        'filters_applied': {
+            'sensor': sensor_filter,
+            'process': process_filter,
+            'type': image_type_filter,
+        }
+    }
+    
+    # Cache non-search results for 5 minutes
+    if not search_query:
+        cache.set(cache_key, response, 300)
+    
+    return response
+
+@api_view(['GET'])
+def get_sensor_summary(request):
+    """
+    Get summary statistics for sensors
+    """
+    cache_key = "sensor_summary"
+    cached_result = cache.get(cache_key)
+    
+    if cached_result:
+        return Response(cached_result)
+    
+    # Get sensor statistics
+    sensor_stats = (
+        Image.objects
+        .values('sensor__unique_identifier')
+        .annotate(
+            image_count=Count('id'),
+            process_count=Count('process_id', distinct=True)
+        )
+        .order_by('sensor__unique_identifier')
+    )
+    
+    summary = []
+    for stat in sensor_stats:
+        summary.append({
+            'sensor_id': stat['sensor__unique_identifier'],
+            'image_count': stat['image_count'],
+            'process_count': stat['process_count'],
+            'processes': list(
+                Image.objects
+                .filter(sensor__unique_identifier=stat['sensor__unique_identifier'])
+                .values_list('process_id', flat=True)
+                .distinct()
+            )
+        })
+    
+    result = {
+        'sensors': summary,
+        'total_sensors': len(summary),
+        'total_images': sum(s['image_count'] for s in summary),
+        'total_processes': len(set().union(*[s['processes'] for s in summary]))
+    }
+    
+    # Cache for 10 minutes
+    cache.set(cache_key, result, 600)
+    
+    return Response(result)
+
+@api_view(['GET'])
+def get_process_summary(request):
+    """
+    Get summary statistics for processes
+    """
+    cache_key = "process_summary"
+    cached_result = cache.get(cache_key)
+    
+    if cached_result:
+        return Response(cached_result)
+    
+    # Get process statistics
+    process_stats = (
+        Image.objects
+        .values('process_id')
+        .annotate(
+            image_count=Count('id'),
+            sensor_count=Count('sensor__unique_identifier', distinct=True)
+        )
+        .order_by('process_id')
+    )
+    
+    summary = []
+    for stat in process_stats:
+        process_id = stat['process_id'] or 'Unspecified'
+        summary.append({
+            'process_id': process_id,
+            'image_count': stat['image_count'],
+            'sensor_count': stat['sensor_count'],
+        })
+    
+    result = {
+        'processes': summary,
+        'total_processes': len(summary),
+    }
+    
+    # Cache for 10 minutes
+    cache.set(cache_key, result, 600)
+    
+    return Response(result)
+
+@api_view(['GET'])
+def search_suggestions(request):
+    """
+    Get search suggestions for autocomplete
+    """
+    query = request.GET.get('q', '').strip()
+    
+    if len(query) < 2:
+        return Response({'suggestions': []})
+    
+    cache_key = f"search_suggestions_{query.lower()}"
+    cached_result = cache.get(cache_key)
+    
+    if cached_result:
+        return Response(cached_result)
+    
+    suggestions = []
+    
+    # Get sensor suggestions
+    sensors = (
+        Image.objects
+        .filter(sensor__unique_identifier__icontains=query)
+        .values_list('sensor__unique_identifier', flat=True)
+        .distinct()[:5]
+    )
+    
+    for sensor in sensors:
+        suggestions.append({
+            'value': sensor,
+            'type': 'sensor',
+            'label': f'Sensor: {sensor}'
+        })
+    
+    # Get process suggestions
+    processes = (
+        Image.objects
+        .filter(process_id__icontains=query)
+        .values_list('process_id', flat=True)
+        .distinct()[:5]
+    )
+    
+    for process in processes:
+        if process:  # Skip None values
+            suggestions.append({
+                'value': process,
+                'type': 'process',
+                'label': f'Process: {process}'
+            })
+    
+    # Get filename suggestions
+    filenames = (
+        Image.objects
+        .filter(image__icontains=query)
+        .values_list('image', flat=True)[:5]
+    )
+    
+    for filename in filenames:
+        base_name = os.path.basename(filename)
+        suggestions.append({
+            'value': base_name,
+            'type': 'filename',
+            'label': f'File: {base_name}'
+        })
+    
+    result = {'suggestions': suggestions[:10]}  # Limit to 10 suggestions
+    
+    # Cache for 5 minutes
+    cache.set(cache_key, result, 300)
+    
+    return Response(result)
+
+# =============================================================================
+# 6. ASYNC BATCH ENCODER API VIEW
+# =============================================================================
+
+from .tasks import create_batch_async
+
+@api_view(['POST'])
+def batch_encoder_async(request):
+    """
+    Async batch encoder - returns immediately while processing in background
+    """
+    try:
+        batch_data = request.data
+        
+        # Basic validation
+        required_fields = ['batch_location', 'batch_id', 'total_wafers', 'total_sensors']
+        for field in required_fields:
+            if field not in batch_data:
+                return Response({'error': f'Missing required field: {field}'}, status=400)
+        
+        # Start async task
+        task = create_batch_async.delay(batch_data)
+        print(f"Task id: {task.id}")
+        
+        return Response({
+            'message': 'Batch creation started!',
+            'task_id': task.id,
+            'status': 'PROCESSING',
+            'batch_info': {
+                'batch_location': batch_data.get('batch_location'),
+                'batch_id': batch_data.get('batch_id'),
+                'total_sensors': int(batch_data['total_wafers']) * int(batch_data['total_sensors'])
+            },
+            'check_status_url': f'/api/batch-status/{task.id}/'
+        }, status=status.HTTP_202_ACCEPTED)  # 202 = Accepted for processing
+        
+    except Exception as e:
+        logger.error(f"Failed to start batch creation: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# =============================================================================
+# 7. TASK STATUS CHECKING API
+# =============================================================================
+
+@api_view(['GET'])
+def check_batch_status(request, task_id):
+    """
+    Check the status of an async batch creation task
+    """
+    try:
+        from celery.result import AsyncResult
+        
+        task = AsyncResult(task_id)
+        
+        if task.state == 'PENDING':
+            response = {
+                'status': 'PENDING',
+                'message': 'Task is waiting to be processed...'
+            }
+        elif task.state == 'PROGRESS':
+            response = {
+                'status': 'PROGRESS',
+                'progress': task.info.get('progress', 0),
+                'message': task.info.get('status', 'Processing...')
+            }
+        elif task.state == 'SUCCESS':
+            result = task.result
+            response = {
+                'status': 'SUCCESS',
+                'message': 'Batch created successfully!',
+                'details': result,
+                'ready_for_summary': True
+            }
+        elif task.state == 'FAILURE':
+            response = {
+                'status': 'FAILURE',
+                'error': str(task.info),
+                'message': 'Batch creation failed'
+            }
+        else:
+            response = {
+                'status': task.state,
+                'message': f'Unknown status: {task.state}'
+            }
+            
+        return Response(response)
+        
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+    
+# =====USE of Optimized Data Model (ImageGroups) ======
+@api_view(['POST'])
+def batch_encoder(request):
+    try:
+        batch_data = request.data
+        sensors = []
+        process_file_map = {}
+
+        batch_location = batch_data.get('batch_location')
+        batch_id = batch_data.get('batch_id')
+        batch_label = batch_data.get('batch_label', '')
+        batch_description = batch_data.get('batch_description', '')
+
+        total_wafers = int(batch_data['total_wafers'])
+        total_sensors = int(batch_data['total_sensors'])
+
+        with transaction.atomic():
+            for i_w in range(total_wafers):
+                wafer_id = i_w + 1
+                wafer_label = batch_data.get('wafer_label', '')
+                wafer_description = batch_data.get('wafer_description', '')
+                wafer_design_id = batch_data.get('wafer_design_id', '')
+
+                sensor_processes = batch_data.get('sensor_processes', [])
+
+                for i_s in range(total_sensors):
+                    sensor_id = i_s + 1
+                    sensor_description = batch_data.get('sensor_description', '')
+
+                    sensor = Sensor(
+                        batch_location=batch_location,
+                        batch_id=batch_id,
+                        batch_label=batch_label,
+                        batch_description=batch_description,
+                        total_wafers=total_wafers,
+                        total_sensors=total_sensors,
+                        wafer_id=wafer_id,
+                        wafer_label=wafer_label,
+                        wafer_description=wafer_description,
+                        wafer_design_id=wafer_design_id,
+                        sensor_id=sensor_id,
+                        sensor_description=sensor_description,
+                    )
+                    sensor.unique_identifier = sensor.get_unique_identifier()
+                    
+                    sensors.append(sensor)
+                    process_file_map[sensor.unique_identifier] = sensor_processes
+
+            # Bulk insert all Sensor objects at once
+            Sensor.objects.bulk_create(sensors, batch_size=1000)
+
+            # Efficiently retrieve saved sensors using u_ids
+            unique_ids = list(process_file_map.keys())
+            saved_sensors = Sensor.objects.filter(unique_identifier__in=unique_ids)
+            sensor_lookup = {sensor.unique_identifier: sensor for sensor in saved_sensors}
+
+            # Prepare SensorProcessRelation entries
+            sensor_process_relations = []
+
+            for unique_identifier, sensor_processes in process_file_map.items():
+                sensor = sensor_lookup.get(unique_identifier)
+                if not sensor:
+                    continue
+
+                for process_data in sensor_processes:
+                    process_id = process_data.get('process_id')
+                    timestamp = process_data.get('timestamp')
+
+                    if timestamp:
+                        timestamp = timestamp.rstrip('Z')
+                        timestamp = datetime.fromisoformat(timestamp).replace(tzinfo=timezone.utc)
+
+                    process_file = ProcessFile.objects.get(process_id=process_id)
+
+                    sensor_process_relations.append(
+                        SensorProcessRelation(
+                            sensor=sensor,
+                            process_file=process_file,
+                            timestamp=timestamp,
+                            unique_identifier=unique_identifier  # Include unique identifier
+                        )
+                    )
+
+            # Bulk insert all SensorProcessRelation entries
+            SensorProcessRelation.objects.bulk_create(sensor_process_relations, batch_size=1000)
+
+            return Response({'message': 'Sensor objects created with processes and timestamps'}, status=status.HTTP_201_CREATED)
+
+    except ProcessFile.DoesNotExist:
+        return Response({'error': 'One or more process files not found'}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# =============================================================================
+# BATCH ENCODER - Creates ImageGroups during sensor creation
+# =============================================================================
+from .tasks import create_imagegroups_task
+
+@api_view(['POST'])
+def batch_encoder_with_imagegroups(request):
+    """
+    Batch encoder that creates sensors AND pre-initializes ImageGroups using Celery 
+    """
+    try:
+        batch_data = request.data
+        
+        # Extract data (same as before)
+        batch_location = batch_data.get('batch_location')
+        batch_id = batch_data.get('batch_id')
+        batch_label = batch_data.get('batch_label', '')
+        batch_description = batch_data.get('batch_description', '')
+        total_wafers = int(batch_data['total_wafers'])
+        total_sensors = int(batch_data['total_sensors'])
+        sensor_processes = batch_data.get('sensor_processes', [])
+        
+        with transaction.atomic():
+            # Step 1: Create sensors (same as optimized version)
+            sensors_to_create = []
+            unique_identifiers = []
+            
+            for wafer_id in range(1, total_wafers + 1):
+                for sensor_id in range(1, total_sensors + 1):
+                    # Pre-compute unique identifier
+                    batch_id_padded = str(batch_id).zfill(3)
+                    wafer_id_padded = str(wafer_id).zfill(2)
+                    sensor_id_padded = str(sensor_id).zfill(3)
+                    unique_identifier = f"{batch_location}{batch_id_padded}-{wafer_id_padded}-{sensor_id_padded}"
+                    
+                    sensor = Sensor(
+                        batch_location=batch_location,
+                        batch_id=batch_id,
+                        batch_label=batch_label,
+                        batch_description=batch_description,
+                        total_wafers=total_wafers,
+                        wafer_id=wafer_id,
+                        wafer_label=batch_data.get('wafer_label', ''),
+                        wafer_description=batch_data.get('wafer_description', ''),
+                        wafer_design_id=batch_data.get('wafer_design_id', ''),
+                        total_sensors=total_sensors,
+                        sensor_id=sensor_id,
+                        sensor_description=batch_data.get('sensor_description', ''),
+                        unique_identifier=unique_identifier
+                    )
+                    
+                    sensors_to_create.append(sensor)
+                    unique_identifiers.append(unique_identifier)
+            
+            # Bulk create sensors
+            Sensor.objects.bulk_create(sensors_to_create, batch_size=1000)
+            
+            # Step 2: PRE-CREATE ImageGroups for future image uploads
+            if sensor_processes:
+                create_imagegroups_task(unique_identifiers, sensor_processes)
+        return Response({
+            'message': 'Batch created with ImageGroup initialization',
+            'details': {
+                'sensors_created': len(sensors_to_create),
+                'image_groups_creation_task': True
+            }
+        }, status=201)
+            
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+    
+
+# =============================================================================
+# OPTIMIZED BATCH ENCODER - With required process relations
+# =============================================================================
+@api_view(['POST'])
+def batch_encoder_with_relations(request):
+    """
+    Fast batch encoder that creates sensors AND required process relations
+    No ImageGroup pre-creation for better performance
+    """
+    try:
+        batch_data = request.data
+        
+        # Extract data
+        batch_location = batch_data.get('batch_location')
+        batch_id = batch_data.get('batch_id')
+        batch_label = batch_data.get('batch_label', '')
+        batch_description = batch_data.get('batch_description', '')
+        total_wafers = int(batch_data['total_wafers'])
+        total_sensors = int(batch_data['total_sensors'])
+        sensor_processes = batch_data.get('sensor_processes', [])
+        
+        # CRITICAL: Pre-validate and cache ProcessFiles
+        process_files_cache = {}
+        valid_process_data = []
+        
+        if sensor_processes:
+            process_ids = [p.get('process_id') for p in sensor_processes if p.get('process_id')]
+            if process_ids:
+                # Single query to fetch all process files
+                process_files = ProcessFile.objects.filter(process_id__in=process_ids)
+                process_files_cache = {pf.process_id: pf for pf in process_files}
+                
+                # Only keep processes that exist in database
+                valid_process_data = [
+                    p for p in sensor_processes 
+                    if p.get('process_id') in process_files_cache
+                ]
+        
+        with transaction.atomic():
+            # Pre-calculate batch identifiers once
+            batch_id_padded = str(batch_id).zfill(3)
+            
+            # Step 1: Create sensors efficiently
+            sensors_to_create = []
+            
+            for wafer_id in range(1, total_wafers + 1):
+                wafer_id_padded = str(wafer_id).zfill(2)
+                
+                for sensor_id in range(1, total_sensors + 1):
+                    sensor_id_padded = str(sensor_id).zfill(3)
+                    unique_identifier = f"{batch_location}{batch_id_padded}-{wafer_id_padded}-{sensor_id_padded}"
+                    
+                    sensor = Sensor(
+                        batch_location=batch_location,
+                        batch_id=batch_id,
+                        batch_label=batch_label,
+                        batch_description=batch_description,
+                        total_wafers=total_wafers,
+                        wafer_id=wafer_id,
+                        wafer_label=batch_data.get('wafer_label', ''),
+                        wafer_description=batch_data.get('wafer_description', ''),
+                        wafer_design_id=batch_data.get('wafer_design_id', ''),
+                        total_sensors=total_sensors,
+                        sensor_id=sensor_id,
+                        sensor_description=batch_data.get('sensor_description', ''),
+                        unique_identifier=unique_identifier  # ✅ FIXED: Direct assignment
+                    )
+                    
+                    sensors_to_create.append(sensor)
+            
+            # Bulk create sensors
+            Sensor.objects.bulk_create(sensors_to_create, batch_size=1000)
+            
+            # Step 2: Create process relations efficiently (REQUIRED for batch_summary)
+            relations_created = 0
+            if valid_process_data:
+                relations_created = _create_process_relations_fast(
+                    sensors_to_create, valid_process_data, process_files_cache
+                )
+                
+            return Response({
+                'message': 'Batch created successfully!',
+                'details': {
+                    'sensors_created': len(sensors_to_create),
+                    'process_relations_created': relations_created,
+                    'processes_attached': list(process_files_cache.keys()),
+                    'ready_for_batch_summary': True
+                }
+            }, status=status.HTTP_201_CREATED)
+            
+    except Exception as e:
+        logger.error(f"Batch creation failed: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def _create_process_relations_fast(sensors_to_create, valid_process_data, process_files_cache):
+    """
+    Highly optimized process relation creation
+    """
+    # Pre-fetch saved sensors in one query using unique_identifiers
+    unique_identifiers = [s.unique_identifier for s in sensors_to_create]
+    saved_sensors = Sensor.objects.filter(unique_identifier__in=unique_identifiers)
+    sensor_lookup = {s.unique_identifier: s for s in saved_sensors}
+    
+    # Prepare all relations for bulk creation
+    relations_to_create = []
+    
+    for process_data in valid_process_data:
+        process_id = process_data.get('process_id')
+        timestamp = process_data.get('timestamp')
+        
+        # Parse timestamp once per process
+        if timestamp:
+            timestamp = timestamp.rstrip('Z')
+            timestamp = datetime.fromisoformat(timestamp).replace(tzinfo=timezone.utc)
+        else:
+            timestamp = timezone.now()  # Default timestamp
+        
+        process_file = process_files_cache[process_id]  # No database hit!
+        
+        # Create relations for ALL sensors in batch
+        for unique_identifier in unique_identifiers:
+            sensor = sensor_lookup.get(unique_identifier)
+            if sensor:  # Safety check
+                relations_to_create.append(
+                    SensorProcessRelation(
+                        process_file=process_file,
+                        timestamp=timestamp,
+                        sensor=sensor,
+                        unique_identifier=unique_identifier
+                    )
+                )
+    
+    # Single bulk create for all relations
+    if relations_to_create:
+        SensorProcessRelation.objects.bulk_create(relations_to_create, batch_size=1000)
+    
+    return len(relations_to_create)
+
+# =============================================================================
+# SIMPLIFIED BATCH ENCODER - No ImageGroup pre-creation
+# =============================================================================
+@api_view(['POST'])
+def batch_encoder_optimized(request):
+    """
+    Simplified batch encoder - creates only sensors and relations
+    ImageGroups created lazily during image upload
+    """
+    try:
+        batch_data = request.data
+        
+        # Extract data
+        batch_location = batch_data.get('batch_location')
+        batch_id = batch_data.get('batch_id')
+        batch_label = batch_data.get('batch_label', '')
+        batch_description = batch_data.get('batch_description', '')
+        total_wafers = int(batch_data['total_wafers'])
+        total_sensors = int(batch_data['total_sensors'])
+        sensor_processes = batch_data.get('sensor_processes', [])
+        
+        # Pre-validate processes (if any)
+        valid_process_ids = []
+        if sensor_processes:
+            process_ids = [p.get('process_id') for p in sensor_processes if p.get('process_id')]
+            if process_ids:
+                valid_processes = ProcessFile.objects.filter(process_id__in=process_ids).values_list('process_id', flat=True)
+                valid_process_ids = list(valid_processes)
+        
+        with transaction.atomic():
+            # Create sensors
+            sensors_to_create = []
+            
+            for wafer_id in range(1, total_wafers + 1):
+                for sensor_id in range(1, total_sensors + 1):
+                    # Pre-compute unique identifier
+                    batch_id_padded = str(batch_id).zfill(3)
+                    wafer_id_padded = str(wafer_id).zfill(2)
+                    sensor_id_padded = str(sensor_id).zfill(3)
+                    unique_identifier = f"{batch_location}{batch_id_padded}-{wafer_id_padded}-{sensor_id_padded}"
+                    
+                    sensor = Sensor(
+                        batch_location=batch_location,
+                        batch_id=batch_id,
+                        batch_label=batch_label,
+                        batch_description=batch_description,
+                        total_wafers=total_wafers,
+                        wafer_id=wafer_id,
+                        wafer_label=batch_data.get('wafer_label', ''),
+                        wafer_description=batch_data.get('wafer_description', ''),
+                        wafer_design_id=batch_data.get('wafer_design_id', ''),
+                        total_sensors=total_sensors,
+                        sensor_id=sensor_id,
+                        sensor_description=batch_data.get('sensor_description', ''),
+                        unique_identifier=unique_identifier
+                    )
+                    
+                    sensors_to_create.append(sensor)
+            
+            # Bulk create sensors
+            Sensor.objects.bulk_create(sensors_to_create, batch_size=1000)
+            
+            # Create process relations (if any)
+            relations_created = 0
+            if sensor_processes and valid_process_ids:
+                relations_created = _create_process_relations_optimized(
+                    sensors_to_create, sensor_processes, valid_process_ids
+                )
+                
+            return Response({
+                'message': 'Batch created successfully!',
+                'details': {
+                    'sensors_created': len(sensors_to_create),
+                    'process_relations_created': relations_created,
+                    'note': 'ImageGroups will be created automatically when images are uploaded'
+                }
+            }, status=status.HTTP_201_CREATED)
+            
+    except Exception as e:
+        logger.error(f"Batch creation failed: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# =============================================================================
+# OPTIMIZED UPDATE_BATCH FUNCTION
+# =============================================================================
+
+@api_view(['PUT'])
+def update_batch_optimized(request, batch_location, batch_id):
+    """
+    Optimized batch update that focuses solely on sensor-process relationships
+    """
+    data = request.data
+    print("Received data:", data)
+    
+    wafer_ids = parse_range(str(data.get('wafer_ids', '')))
+    sensor_ids = parse_range(str(data.get('sensor_ids', '')))
+    new_process_data = data.get('new_process_data', [])
+    delete_list = data.get('delete_list', [])
+    update_data = data.get('updates', {})
+
+    response_details = {
+        "updated_items": 0,
+        "created_items": 0,
+        "deleted_items": 0,
+        "performance_metrics": {}
+    }
+
+    try:
+        start_time = time.time()
+        
+        with transaction.atomic():
+            # Step 1: Retrieve and filter sensors (optimized query)
+            sensors_qs = Sensor.objects.filter(batch_location=batch_location, batch_id=batch_id)
+            if wafer_ids:
+                sensors_qs = sensors_qs.filter(wafer_id__in=wafer_ids)
+            if sensor_ids:
+                sensors_qs = sensors_qs.filter(sensor_id__in=sensor_ids)
+
+            # Only select fields we actually need
+            sensors_data = list(sensors_qs.values('id', 'unique_identifier'))
+            sensor_db_ids = [s['id'] for s in sensors_data]
+            
+            print(f"Number of sensors to process: {len(sensors_data)}")
+            
+            if not sensors_data:
+                return Response({'error': 'No sensors found matching criteria'}, 
+                              status=status.HTTP_404_NOT_FOUND)
+            
+            query_time = time.time() - start_time
+            response_details["performance_metrics"]["query_time"] = f"{query_time:.3f}s"
+
+            # Step 2: Bulk Update Sensor Instances
+            if update_data:
+                print(f"Applying updates to sensors: {update_data}")
+                # Filter to only allowed sensor fields for security
+                allowed_fields = {
+                    'batch_label', 'batch_description', 'wafer_label', 'wafer_description', 
+                    'wafer_design_id', 'sensor_label', 'sensor_description', 'total_wafers', 'total_sensors'
+                }
+                update_fields = {
+                    field: value for field, value in update_data.items() 
+                    if field in allowed_fields and hasattr(Sensor, field)
+                }
+                
+                if update_fields:
+                    sensors_qs.update(**update_fields)
+                    response_details["updated_items"] = len(sensor_db_ids)
+
+            # Step 3: Handle NEW Process Associations
+            if new_process_data:
+                creation_start = time.time()
+                
+                # Pre-validate all processes in one query
+                process_ids = [p.get('process_id') for p in new_process_data if p.get('process_id')]
+                if not process_ids:
+                    raise ValueError("No valid process IDs provided")
+                    
+                valid_process_files = {
+                    pf.process_id: pf 
+                    for pf in ProcessFile.objects.filter(process_id__in=process_ids)
+                }
+                
+                if not valid_process_files:
+                    raise ValueError("No valid process IDs found in database")
+                
+                sensor_process_relations = []
+                
+                # Process each entry and validate
+                for process_entry in new_process_data:
+                    process_id = process_entry.get('process_id')
+                    timestamp = process_entry.get('timestamp')
+
+                    if process_id not in valid_process_files:
+                        continue
+                    
+                    if not timestamp:
+                        raise ValueError(f"Timestamp required for process {process_id}")
+                    
+                    # Parse timestamp once and validate
+                    try:
+                        if isinstance(timestamp, str):
+                            timestamp = datetime.fromisoformat(timestamp.rstrip('Z')).replace(tzinfo=timezone.utc)
+                    except ValueError as e:
+                        raise ValueError(f"Invalid timestamp format for process {process_id}: {timestamp}")
+
+                    # Create relations for all matching sensors
+                    for sensor_data in sensors_data:
+                        sensor_process_relations.append(
+                            SensorProcessRelation(
+                                process_file=valid_process_files[process_id],  # Fixed: use object, not ID
+                                sensor_id=sensor_data['id'],
+                                timestamp=timestamp,
+                                unique_identifier=sensor_data['unique_identifier']
+                            )
+                        )
+                        
+                # Bulk create with optimized batch size
+                if sensor_process_relations:
+                    # Use smaller batches for better memory usage
+                    batch_size = 1000
+                    created_count = 0
+                    
+                    for i in range(0, len(sensor_process_relations), batch_size):
+                        batch = sensor_process_relations[i:i + batch_size]
+                        created_relations = SensorProcessRelation.objects.bulk_create(
+                            batch, ignore_conflicts=True
+                        )
+                        created_count += len(created_relations)
+                    
+                    response_details["created_items"] = created_count
+                
+                creation_time = time.time() - creation_start
+                response_details["performance_metrics"]["creation_time"] = f"{creation_time:.3f}s"
+
+            # Step 4: Handle DELETIONS
+            if delete_list:
+                deletion_start = time.time()
+                
+                # Build efficient deletion conditions
+                process_conditions = []
+                for process in delete_list:
+                    process_id = process.get('process_id', '').strip()
+                    timestamp = process.get('timestamp', '').strip()
+                    if process_id and timestamp:
+                        try:
+                            parsed_timestamp = datetime.fromisoformat(timestamp.rstrip('Z')).replace(tzinfo=timezone.utc)
+                            process_conditions.append((process_id, parsed_timestamp))
+                        except ValueError:
+                            print(f"Invalid timestamp in delete_list: {timestamp}")
+                            continue
+                        
+                if process_conditions:
+                    # Build efficient Q object for deletion
+                    deletion_filter = Q(sensor_id__in=sensor_db_ids)
+                    process_q = Q()
+                    for process_id, timestamp in process_conditions:
+                        process_q |= Q(process_file__process_id=process_id, timestamp=timestamp)
+                    
+                    deletion_filter &= process_q
+                    
+                    deleted_count, _ = SensorProcessRelation.objects.filter(deletion_filter).delete()
+                    response_details["deleted_items"] = deleted_count
+                
+                deletion_time = time.time() - deletion_start
+                response_details["performance_metrics"]["deletion_time"] = f"{deletion_time:.3f}s"
+
+        total_time = time.time() - start_time
+        response_details["performance_metrics"]["total_time"] = f"{total_time:.3f}s"
+        
+        return Response(response_details, status=status.HTTP_200_OK)
+
+    except ValueError as ve:
+        print(f"Validation error: {ve}")
+        return Response({'error': str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        print(f"Error in processing request: {e}")
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# =============================================================================
+# OPTIMIZED SL_WITH_PROCESSES FUNCTION  
+# =============================================================================
+
+@api_view(['PUT'])
+def sl_with_processes_optimized(request):
+    """
+    Optimized sensor-level update for specific sensors by unique_identifier
+    """
+    data = request.data
+    print("Received data:", data)
+    
+    u_ids = data.get('u_ids', [])
+    new_process_data = data.get('new_process_data', [])
+    delete_list = data.get('delete_list', [])
+    update_data = data.get('updates', {})
+    
+    if not u_ids:
+        return Response({'error': 'u_ids parameter required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    response_details = {
+        "updated_items": 0,
+        "created_items": 0,
+        "deleted_items": 0,
+        "invalid_u_ids": [],
+        "performance_metrics": {}
+    }
+
+    try:
+        start_time = time.time()
+        
+        with transaction.atomic():
+            # Step 1: Validate and retrieve sensors by unique_identifier
+            sensors_data = list(Sensor.objects.filter(
+                unique_identifier__in=u_ids
+            ).values('id', 'unique_identifier'))
+            
+            found_u_ids = {s['unique_identifier'] for s in sensors_data}
+            invalid_u_ids = set(u_ids) - found_u_ids
+            
+            if invalid_u_ids:
+                response_details['invalid_u_ids'] = list(invalid_u_ids)
+                print(f"Warning: Invalid u_ids found: {invalid_u_ids}")
+                
+            if not sensors_data:
+                return Response({'error': 'No valid sensors found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+            sensor_db_ids = [s['id'] for s in sensors_data]
+            # FIXED: corrected field name
+            unique_identifiers = [s['unique_identifier'] for s in sensors_data]
+            
+            print(f"Number of sensors to process: {len(sensors_data)}")
+
+            # Step 2: Update allowed sensor fields
+            if update_data:
+                update_fields = {}
+                allowed_fields = ['sensor_label', 'sensor_description']
+                
+                for field in allowed_fields:
+                    if field in update_data:
+                        update_fields[field] = update_data[field]
+                        
+                # Handle label relationship update
+                if 'label' in update_data:
+                    try:
+                        label_obj = SensorLabel.objects.get(name=update_data['label'])
+                        update_fields['label'] = label_obj
+                    except SensorLabel.DoesNotExist:
+                        return Response({'error': f"Label '{update_data['label']}' does not exist."}, 
+                                    status=status.HTTP_400_BAD_REQUEST)
+                
+                if update_fields:
+                    Sensor.objects.filter(id__in=sensor_db_ids).update(**update_fields)
+                    response_details["updated_items"] = len(sensor_db_ids)
+
+            # Step 3: Handle NEW Process Associations
+            if new_process_data:
+                creation_start = time.time()
+                
+                # Pre-validate processes
+                process_ids = [p.get('process_id') for p in new_process_data if p.get('process_id')]
+                if not process_ids:
+                    raise ValueError("No valid process IDs provided")
+                    
+                valid_process_files = {
+                    pf.process_id: pf 
+                    for pf in ProcessFile.objects.filter(process_id__in=process_ids)
+                }
+                
+                if not valid_process_files:
+                    raise ValueError("No valid process IDs found in database")
+                
+                sensor_process_relations = []
+                
+                for process_entry in new_process_data:
+                    process_id = process_entry.get('process_id')
+                    timestamp = process_entry.get('timestamp')
+                    
+                    if process_id not in valid_process_files or not timestamp:
+                        continue
+                    
+                    try:
+                        if isinstance(timestamp, str):
+                            timestamp = datetime.fromisoformat(timestamp.rstrip('Z')).replace(tzinfo=timezone.utc)
+                    except ValueError:
+                        print(f"Invalid timestamp for process {process_id}: {timestamp}")
+                        continue
+                    
+                    # Create relations for specified sensors only
+                    for sensor_data in sensors_data:
+                        sensor_process_relations.append(
+                            SensorProcessRelation(
+                                process_file=valid_process_files[process_id],  # Fixed: use object, not field
+                                sensor_id=sensor_data['id'],
+                                timestamp=timestamp,
+                                unique_identifier=sensor_data['unique_identifier']
+                            )
+                        )
+                        
+                # Bulk operations with batching
+                if sensor_process_relations:
+                    batch_size = 1000
+                    created_count = 0
+                    
+                    for i in range(0, len(sensor_process_relations), batch_size):
+                        batch = sensor_process_relations[i:i + batch_size]
+                        created_relations = SensorProcessRelation.objects.bulk_create(
+                            batch, ignore_conflicts=True
+                        )
+                        created_count += len(created_relations)
+                    
+                    response_details["created_items"] = created_count
+                
+                creation_time = time.time() - creation_start
+                response_details["performance_metrics"]["creation_time"] = f"{creation_time:.3f}s"
+                        
+            # Step 4: Handle deletions
+            if delete_list:
+                deletion_start = time.time()
+                
+                # Build efficient deletion filter
+                process_conditions = []
+                for process in delete_list:
+                    process_id = process.get('process_id', '').strip()
+                    timestamp = process.get('timestamp', '').strip()
+                    if process_id and timestamp:
+                        try:
+                            parsed_timestamp = datetime.fromisoformat(timestamp.rstrip('Z')).replace(tzinfo=timezone.utc)
+                            process_conditions.append((process_id, parsed_timestamp))
+                        except ValueError:
+                            print(f"Invalid timestamp in delete_list: {timestamp}")
+                            continue
+                        
+                if process_conditions:
+                    # Build Q object for deletion
+                    deletion_filter = Q(sensor_id__in=sensor_db_ids)
+                    process_q = Q()
+                    for process_id, timestamp in process_conditions:
+                        process_q |= Q(process_file__process_id=process_id, timestamp=timestamp)
+                    
+                    deletion_filter &= process_q
+                    
+                    deleted_count, _ = SensorProcessRelation.objects.filter(deletion_filter).delete()
+                    response_details["deleted_items"] = deleted_count
+                
+                deletion_time = time.time() - deletion_start
+                response_details["performance_metrics"]["deletion_time"] = f"{deletion_time:.3f}s"
+
+        total_time = time.time() - start_time
+        response_details["performance_metrics"]["total_time"] = f"{total_time:.3f}s"
+        
+        return Response(response_details, status=status.HTTP_200_OK)
+
+    except ValueError as ve:
+        print(f"Validation error: {ve}")
+        return Response({'error': str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        print(f"Error in processing request: {e}")
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# =============================================================================
+# IMAGE UPLOAD - Updates ImageGroups when images are added
+# =============================================================================
+
+@api_view(['POST'])
+def upload_image_with_imagegroups_1(request):
+    import os
+    u_ids = request.data.getlist('u_ids')
+    process_ids = request.data.getlist('process_ids')
+    image_files = request.FILES.getlist('image_files')
+
+    if not (len(image_files) == len(process_ids) == len(u_ids)):
+        return Response({'error': 'Array length mismatch'}, status=400)
+
+    with transaction.atomic():
+        unique_u_ids = list(set(u_ids))
+        sensors_lookup = {
+            sensor.unique_identifier: sensor
+            for sensor in Sensor.objects.filter(unique_identifier__in=unique_u_ids)
+        }
+
+        success_count = 0
+        failure_details = []
+
+        for i in range(len(image_files)):
+            u_id = u_ids[i]
+            process_id = process_ids[i]
+            image_file = image_files[i]
+
+            try:
+                sensor = sensors_lookup.get(u_id)
+                if not sensor:
+                    failure_details.append({'index': i, 'u_id': u_id, 'reason': 'Sensor not found'})
+                    continue
+
+                # Create the Image
+                image_obj = Image.objects.create(
+                    sensor=sensor,
+                    process_id=process_id,
+                    image=image_file,
+                    sensor_unique_id=u_id
+                )
+
+                group_key = f"{u_id}|{process_id or 'Unspecified'}"
+                group, created = ImageGroup.objects.get_or_create(
+                    group_key=group_key,
+                    defaults={
+                        'sensor_unique_id': u_id,
+                        'process_id': process_id,
+                        'images_data': [],
+                        'image_count': 0
+                    }
+                )
+
+                filename = os.path.basename(image_obj.image.name)
+                base, ext = os.path.splitext(filename)
+
+                image_data = {
+                    'id': str(image_obj.id),
+                    'image_url': image_obj.image.url,
+                    'file_name': filename,
+                    'suffix': base.split('_')[-1] if '_' in base else ''
+                }
+
+                # Add image only if it doesn't already exist in the group
+                if not any(img['id'] == image_data['id'] for img in group.images_data):
+                    group.images_data.append(image_data)
+                    group.image_count = len(group.images_data)
+                    group.save()
+
+                success_count += 1
+
+            except Exception as e:
+                failure_details.append({'index': i, 'u_id': u_id, 'reason': str(e)})
+
+        return Response({
+            'message': f'{success_count} image(s) uploaded and groups updated!',
+            'failures': failure_details
+        }, status=status.HTTP_201_CREATED if success_count > 0 else status.HTTP_400_BAD_REQUEST)
+
+# ======== TIFF File COnverision =========
+@api_view(['POST'])
+def upload_image_with_imagegroups(request):
+    u_ids = request.data.getlist('u_ids')
+    process_ids = request.data.getlist('process_ids')
+    image_files = request.FILES.getlist('image_files')
+
+    if not (len(image_files) == len(process_ids) == len(u_ids)):
+        return Response({'error': 'Array length mismatch'}, status=400)
+
+    with transaction.atomic():
+        unique_u_ids = list(set(u_ids))
+        sensors_lookup = {
+            sensor.unique_identifier: sensor
+            for sensor in Sensor.objects.filter(unique_identifier__in=unique_u_ids)
+        }
+
+        success_count = 0
+        failure_details = []
+
+        for i in range(len(image_files)):
+            u_id = u_ids[i]
+            process_id = process_ids[i]
+            uploaded_file = image_files[i]
+
+            try:
+                sensor = sensors_lookup.get(u_id)
+                if not sensor:
+                    failure_details.append({'index': i, 'u_id': u_id, 'reason': 'Sensor not found'})
+                    continue
+
+                file_name, ext = os.path.splitext(uploaded_file.name)
+                ext = ext.lower()
+
+                converted_file = uploaded_file
+                original_file_ref = None
+
+                # ====================================================
+                # Handle TIFF Conversion
+                # ====================================================
+                if ext in [".tif", ".tiff"]:
+                    try:
+                        pil_img = PilImage.open(uploaded_file)
+                        pil_img = pil_img.convert("RGB")
+
+                        buffer = io.BytesIO()
+                        pil_img.save(buffer, format="PNG")  # always safe for web
+                        buffer.seek(0)
+
+                        converted_file = ContentFile(buffer.read(), name=f"{file_name}.png")
+                        original_file_ref = uploaded_file
+                    except Exception as e:
+                        failure_details.append({'index': i, 'u_id': u_id, 'reason': f'TIFF conversion failed: {str(e)}'})
+                        continue
+
+                # ====================================================
+                # Save Image model
+                # ====================================================
+                image_obj = Image.objects.create(
+                    sensor=sensor,
+                    process_id=process_id,
+                    image=converted_file,       # always displayable
+                    original_file=original_file_ref,  # only if TIFF
+                    sensor_unique_id=u_id
+                )
+
+                # ====================================================
+                # Update ImageGroup (extended schema)
+                # ====================================================
+                group_key = f"{u_id}|{process_id or 'Unspecified'}"
+                group, created = ImageGroup.objects.get_or_create(
+                    group_key=group_key,
+                    defaults={
+                        'sensor_unique_id': u_id,
+                        'process_id': process_id,
+                        'images_data': [],
+                        'image_count': 0
+                    }
+                )
+
+                filename = os.path.basename(image_obj.image.name)
+                base, _ = os.path.splitext(filename)
+
+                image_data = {
+                    'id': str(image_obj.id),
+                    'display_url': image_obj.image.url,   # converted (frontend safe)
+                    'original_url': image_obj.original_file.url if image_obj.original_file else None,
+                    'file_name': filename,
+                    'suffix': base.split('_')[-1] if '_' in base else '',
+                    'upload_date': image_obj.upload_date.isoformat() if image_obj.upload_date else None
+                }
+
+                if not any(img['id'] == image_data['id'] for img in group.images_data):
+                    group.images_data.append(image_data)
+                    group.image_count = len(group.images_data)
+                    group.save()
+
+                success_count += 1
+
+            except Exception as e:
+                failure_details.append({'index': i, 'u_id': u_id, 'reason': str(e)})
+
+        return Response({
+            'message': f'{success_count} image(s) uploaded and groups updated!',
+            'failures': failure_details
+        }, status=status.HTTP_201_CREATED if success_count > 0 else status.HTTP_400_BAD_REQUEST)           
+        
+# =============================================================================
+# MAIN PAGINATION FUNCTION - This replaces your get_images_2 function
+# =============================================================================
+
+@api_view(['GET'])
+def get_images_optimized_final(request):
+    """
+    Final optimized image pagination using ImageGroup for perfect grouping
+    This ensures groups never split across pages
+    """
+    # Get filter parameters
+    sensor_query = request.GET.get('sensor', '').lower().strip()
+    process_query = request.GET.get('process', '').lower().strip()
+    page = int(request.GET.get('page', 1))
+    page_size = int(request.GET.get('page_size', 5))
+    
+    print(f"Query params - Sensor: '{sensor_query}', Process: '{process_query}', Page: {page}")
+    
+    # Start with all ImageGroups
+    groups_query = ImageGroup.objects.all()
+    
+    # Apply filters to groups (not individual images!)
+    if sensor_query:
+        groups_query = groups_query.filter(sensor_unique_id__icontains=sensor_query)
+    
+    if process_query:
+        if process_query == 'all':
+            # Don't filter by process for "all"
+            pass
+        else:
+            groups_query = groups_query.filter(process_id__icontains=process_query)
+    
+    # Order for consistent pagination
+    groups_query = groups_query.order_by('sensor_unique_id', 'process_id')
+    
+    # Get total count for pagination metadata
+    total_groups = groups_query.count()
+    print(f"Found {total_groups} groups matching filters")
+    
+    # Paginate the GROUPS (not individual images)
+    start_idx = (page - 1) * page_size
+    end_idx = start_idx + page_size
+    paginated_groups = groups_query[start_idx:end_idx]
+    
+    print(f"Returning groups {start_idx} to {end_idx}")
+    
+    # Convert groups back to flat structure for frontend compatibility
+    flattened_results = []
+    total_images_on_page = 0
+    
+    for group in paginated_groups:
+        for image_data in group.images_data:
+            flattened_results.append({
+                'sensor': group.sensor_unique_id,
+                'process_id': group.process_id,
+                'image': image_data['display_url'],
+                'file_name': image_data['file_name'],
+                'suffix': image_data['suffix'],
+                'download_url': image_data['original_url'],
+            })
+            total_images_on_page += 1
+    
+    # Pagination metadata
+    has_next = end_idx < total_groups
+    has_previous = start_idx > 0
+    
+    next_url = f"?page={page + 1}"
+    if sensor_query:
+        next_url += f"&sensor={sensor_query}"
+    if process_query and process_query != 'all':
+        next_url += f"&process={process_query}"
+    
+    prev_url = f"?page={page - 1}"
+    if sensor_query:
+        prev_url += f"&sensor={sensor_query}"
+    if process_query and process_query != 'all':
+        prev_url += f"&process={process_query}"
+    
+    response_data = {
+        'count': sum(group.image_count for group in ImageGroup.objects.filter(
+            sensor_unique_id__icontains=sensor_query if sensor_query else '',
+            process_id__icontains=process_query if process_query and process_query != 'all' else ''
+        )),
+        'next': next_url if has_next else None,
+        'previous': prev_url if has_previous else None,
+        'results': flattened_results,
+        
+        # Extra metadata for debugging/monitoring
+        'page_info': {
+            'current_page': page,
+            'total_groups': total_groups,
+            'groups_on_page': len(paginated_groups),
+            'total_images_on_page': total_images_on_page,
+            'page_size': page_size
+        }
+    }
+    
+    print(f"Returning {len(flattened_results)} images from {len(paginated_groups)} groups")
+    return Response(response_data)

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Batch Encoder</title>
+	<link rel="icon" type="image/x-icon" href="https://pidb-bucket.s3.ap-southeast-4.amazonaws.com/frontend/icon.png">
+	<link rel="stylesheet" href="../shared/style.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<style>
+		.info-icon::before
+		{
+			content: "\1f6c8";
+			font-size: 24px;
+			cursor: pointer;
+		}
+
+        #wafer_process_dropdown {
+            width: 100%;
+            max-width: 900px;
+            font-size: medium;
+            height: 120px;
+            cursor: pointer;
+        }
+
+        .wafer_process_dropdown:hover {
+            background-color: #add8e6;
+            cursor: pointer;
+        }
+
+        .timestamp-container {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+
+        label {
+            display: block;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+
+        /* Multi-select helper text */
+        .multi-select-help {
+            font-size: 12px;
+            color: #666;
+            font-style: italic;
+            margin-top: 5px;
+        }
+
+        /* Update for header and navigation panel to allow dropdown visibility */
+        header {
+            background-color: #343a40; /* Dark blue header */
+            color: #fff; /* White text */
+            padding: 1rem;
+            text-align: center;
+            position: relative;
+            z-index: 1; /* Ensure header is not hidden, but dropdowns show above */
+        }
+        
+        .navigation-panel {
+            overflow: visible; /* Ensure that overflow content is visible */
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1; /* Position this layer below the search box suggestions */
+        }
+        
+        /* SearchBox and autocomplete styles */
+        .searchBox {
+            display: flex;
+            align-items: center;
+            position: relative;
+            width: 300px;  /* Adjust the width as needed */
+            margin-left: auto;
+            right: 20px;
+            z-index: 999; /* Ensures it's on top of other elements */
+        }
+        
+        .searchBox input {
+            padding: 5px;
+            font-size: 14px;
+            height: 30px; /* Adjust the height */
+            width: 100%;
+            box-sizing: border-box; /* Ensures the input's width includes padding and borders */
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        /* Dropdown for autocomplete suggestions */
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 35px;  /* Position below the search input field */
+            left: 0;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #fff;
+            z-index: 1000; /* Ensure dropdown shows above other elements */
+            max-height: 200px;  /* Limit the height */
+            overflow-y: auto;   /* Enable vertical scroll if suggestions overflow */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .autocomplete-suggestions div {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            color: black;
+        }
+        
+        .autocomplete-suggestions div:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-suggestions div:hover {
+            background-color: #f0f0f0;
+        }
+
+        .autocomplete-active {
+            background-color: #e9e9e9;
+            color: black;
+        }
+
+        /* Toast notification styles */
+        #toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            min-width: 250px;
+            max-width: 350px;
+            padding: 10px 15px;
+            border-radius: 5px;
+            color: #fff;
+            font-weight: bold;
+            opacity: 0.95;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .toast.success { background-color: #4CAF50; }
+        .toast.error { background-color: #f44336; }
+        .toast.info { background-color: #2196F3; }
+        .toast .close-btn {
+            cursor: pointer;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+	</style>
+</head>
+<body>
+	<header>
+		<h1>Batch Encoder</h1>
+		<!-- Navigation Panel-->
+		<div class="navigation-panel">
+            <a href="home_page.html">Home</a>
+            <div class="subnav">
+                <button class="subnavbtn">Processes <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="\process_encoder\process_encoder.html">Process Encoder</a>
+                    <a href="\process_views.html">Process List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Batches <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="\batch_encoder.html">Batch Encoder</a>
+                    <a href="/batch_encoder\batch_summary.html">Batch List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Images <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="image_upload.html">Upload Images</a>
+                    <a href="image_view.html">Electrode Images List</a>
+                </div>
+            </div>
+            <div class="subnav">
+                <button class="subnavbtn">Updates <i class="fa fa-caret-down"></i></button>
+                <div class="subnav-content">
+                    <a href="update_test_5.html">Update Batch</a>
+                    <a href="sensor_update.html">Update Sensors</a>
+                </div>
+            </div>
+            <div id="user-dropdown" class="userDropdown">
+                <span class="user-icon"><i class="fa fa-user-circle"></i></span>
+                <span id="user-name" class="user-name">Username</span>
+                <div class="userDropdown-content" id="userDropdown-content">
+                    <button id="logoutBtn">Logout</button>
+                </div>
+            </div>
+        </div>
+	</header>
+
+    <div id="loader" class="loader"></div>
+
+    <table id="batchtable">
+        <tr>
+            <td style="background-color: lightblue;">Batch Location</td>
+            <td><input type="text" id="batch_location" placeholder="Enter a letter"></td>
+        </tr>
+        <tr>
+            <td style="background-color: lightblue;">Batch ID</td>
+            <td><input type="text" id="batch_id" placeholder="Enter a number"></td>
+        </tr>
+        <tr>
+            <td style="background-color: lightblue;">Total Wafers</td>
+            <td><input type="text" id="total_wafers" placeholder="Enter a number"></td>
+        </tr>
+        <tr>
+            <td style="background-color: lightblue;">Total Sensors per wafer</td>
+            <td><input type="text" id="total_sensors" placeholder="Enter a number"></td>
+        </tr>
+        <tr>
+            <td>Batch Label</td>
+            <td><input type="text" id="batch_label" placeholder="Enter a string"></td>
+        </tr>
+        <tr>
+            <td>Batch Description</td>
+            <td><textarea id="batch_description" rows="4" cols="50" style="height: 100px;" placeholder="Enter a string"></textarea></td>
+        </tr>
+        <tr>
+            <td style="background-color: lightblue;">Process ID</td>
+            <td>
+                <label for="wafer_process_dropdown">Select Process IDs (Optional):</label>
+                <select id="wafer_process_dropdown" multiple size="5"></select>
+                <div class="multi-select-help">Hold Ctrl/Cmd to select multiple processes</div>
+                <span class="info-icon" title="List of Processes"></span>
+                <div id="timestampContainerWrapper"></div>
+                <small style="color: gray;">You can skip this if no processes are needed yet.</small>
+            </td>
+        </tr>
+        <tr>
+            <td>Wafer Label</td>
+            <td><input type="text" id="wafer_label" placeholder="Enter a string"></td>
+        </tr>
+        <tr>
+            <td>Wafer Description</td>
+            <td><input type="text" id="wafer_description" placeholder="Enter a string"></td>
+        </tr>
+        <tr>
+            <td>Wafer Design ID</td>
+            <td><input type="text" id="wafer_design_id" placeholder="Enter a string"></td>
+        </tr>
+        <!--tr>
+            <td>Sensor Label</td>
+            <td><input type="text" id="sensor_label" placeholder="Enter a string"></td>
+        </tr-->
+        <tr>
+            <td>Sensor Description</td>
+            <td><textarea id="sensor_description" rows="4" cols="50" style="height: 100px;" placeholder="Enter a string"></textarea></td>
+        </tr>
+    </table>
+
+
+    <button id="postBatchData">Import</button>
+    <div style="background-color: #C9CDE4">
+        <p><b>Call return</b></p>
+        <p id="error-output" style="color: red; margin-top: 10px;">Status message</p>
+    </div>
+
+    <!-- Container for toast notifications -->
+    <div id="toast-container"></div>
+
+    <!-- Container for individual task progress bars -->
+    <div id="tasksContainer"></div>
+
+    <script type="module" src="./v4_batch_encoder.js"></script>
+    <script type="module" src="../shared/global_tasks.js"></script>
+
+    
+
+</body>
+</html>

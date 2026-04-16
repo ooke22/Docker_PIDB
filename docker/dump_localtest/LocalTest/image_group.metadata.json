@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"id":{"$numberInt":"1"}},"name":"__primary_key__","unique":true},{"v":{"$numberInt":"2"},"key":{"group_key":{"$numberInt":"1"}},"name":"group_key_1","unique":true}],"uuid":"620c47ca3f874d939dee55d4f1215489","collectionName":"image_group","type":"collection"}

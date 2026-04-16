@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Overview</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f4f6f9;
+      color: #333;
+    }
+    header {
+      background: #2d3e50;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+    }
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .card h2 {
+      font-size: 1.2rem;
+      margin: 0 0 0.5rem;
+    }
+    .value {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #0073e6;
+    }
+    .section {
+      margin: 1rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background: #f0f0f0;
+    }
+    .progress {
+      background: #e0e0e0;
+      border-radius: 5px;
+      overflow: hidden;
+      height: 16px;
+      margin-top: 5px;
+    }
+    .progress-bar {
+      height: 100%;
+      text-align: right;
+      padding-right: 4px;
+      color: white;
+      font-size: 12px;
+      line-height: 16px;
+    }
+    .btn {
+      display: inline-block;
+      margin: 0.3rem 0.2rem;
+      padding: 0.6rem 1rem;
+      border: none;
+      border-radius: 6px;
+      background: #0073e6;
+      color: white;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn:hover {
+      background: #005bb5;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Consolidated Dashboard Overview</h1>
+  </header>
+
+  <!-- Metrics Summary -->
+  <div class="dashboard">
+    <div class="card">
+      <h2>Total Batches</h2>
+      <div class="value" id="totalBatches">0</div>
+    </div>
+    <div class="card">
+      <h2>Total Wafers</h2>
+      <div class="value" id="totalWafers">0</div>
+    </div>
+    <div class="card">
+      <h2>Total Sensors</h2>
+      <div class="value" id="totalSensors">0</div>
+    </div>
+    <div class="card">
+      <h2>Total Processes</h2>
+      <div class="value" id="totalProcesses">0</div>
+    </div>
+    <div class="card">
+      <h2>Errors</h2>
+      <div class="value" id="totalErrors">0</div>
+    </div>
+  </div>
+
+  <!-- Latest Batches -->
+  <div class="section card">
+    <h2>Latest Batches</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Batch ID</th>
+          <th>Location</th>
+          <th>Wafers</th>
+          <th>Sensors</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="batchTableBody">
+        <!-- Rows injected here -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Active Tasks -->
+  <div class="section card">
+    <h2>Active Tasks</h2>
+    <div id="taskList"></div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="section card">
+    <h2>Quick Actions</h2>
+    <a href="/batch_encoder" class="btn">New Batch</a>
+    <a href="/wafer_form" class="btn">Add Wafers</a>
+    <a href="/sensor_entry" class="btn">Update Sensors</a>
+    <a href="/image_upload" class="btn">Upload Images</a>
+  </div>
+
+  <script>
+    // Example mock data (replace with API fetch calls)
+    const metrics = {
+      totalBatches: 12,
+      totalWafers: 95,
+      totalSensors: 2100,
+      totalProcesses: 8,
+      totalErrors: 3
+    };
+
+    const batches = [
+      {id: "B-1001", location: "A", wafers: 8, sensors: 210, status: "Completed"},
+      {id: "B-1002", location: "B", wafers: 12, sensors: 330, status: "Processing"},
+      {id: "B-1003", location: "C", wafers: 5, sensors: 120, status: "Pending"},
+    ];
+
+    const tasks = [
+      {name: "Image Conversion", progress: 25, color: "#f39c12"},
+      {name: "Batch Encoding", progress: 60, color: "#0073e6"},
+      {name: "Sensor Update", progress: 90, color: "#27ae60"},
+    ];
+
+    // Populate metrics
+    document.getElementById("totalBatches").textContent = metrics.totalBatches;
+    document.getElementById("totalWafers").textContent = metrics.totalWafers;
+    document.getElementById("totalSensors").textContent = metrics.totalSensors;
+    document.getElementById("totalProcesses").textContent = metrics.totalProcesses;
+    document.getElementById("totalErrors").textContent = metrics.totalErrors;
+
+    // Populate batches
+    const batchTableBody = document.getElementById("batchTableBody");
+    batches.forEach(b => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${b.id}</td>
+        <td>${b.location}</td>
+        <td>${b.wafers}</td>
+        <td>${b.sensors}</td>
+        <td>${b.status}</td>
+      `;
+      batchTableBody.appendChild(row);
+    });
+
+    // Populate tasks
+    const taskList = document.getElementById("taskList");
+    tasks.forEach(t => {
+      const taskDiv = document.createElement("div");
+      taskDiv.innerHTML = `
+        <div><strong>${t.name}</strong></div>
+        <div class="progress">
+          <div class="progress-bar" style="width:${t.progress}%; background:${t.color}">
+            ${t.progress}%
+          </div>
+        </div>
+      `;
+      taskList.appendChild(taskDiv);
+    });
+  </script>
+</body>
+</html>

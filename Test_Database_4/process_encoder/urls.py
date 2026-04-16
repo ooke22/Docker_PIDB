@@ -6,5 +6,6 @@ urlpatterns = [
     path('get_processes/', views.get_processes, name='getprocesses'),
     path('view_processes/', views.view_processes, name='viewprocess'),
     path('delete/<str:process_id>/', views.delete_processes, name='deleteprocess'),
-    path('update/<str:process_id>/', views.update_process, name='updateprocess')
+    path('update/<str:process_id>/', views.update_process, name='updateprocess'),
+    path('api', views.process_api, name='process-api')
 ]
